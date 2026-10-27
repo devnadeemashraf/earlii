@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Earlii</title>
+    <meta name="description" content="Fresh roles, before everyone else." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+    <!--
+      First paint, before any JS: the app's background and a static copy of the home skeleton
+      (src/routes/__root.tsx Shell + src/components/api-status.tsx ApiStatusSkeleton). React
+      replaces #root's contents on mount. No inline scripts or on* attributes, so a strict CSP
+      (script-src 'self') can be added later. The colours match src/index.css and the manifest.
+    -->
+    <style>
+      :root { color-scheme: light dark; --boot-bg: #ffffff; --boot-fg: #0a0a0a; --boot-muted: #f5f5f5; --boot-sub: #737373; --boot-border: #e5e5e5; }
+      @media (prefers-color-scheme: dark) {
+        :root { --boot-bg: #0a0a0a; --boot-fg: #fafafa; --boot-muted: #262626; --boot-sub: #a1a1a1; --boot-border: #ffffff1a; }
+      }
+      html, body { margin: 0; background: var(--boot-bg); color: var(--boot-fg); }
+      body { font-family: ui-sans-serif, system-ui, sans-serif; }
+      .boot { box-sizing: border-box; max-width: 28rem; margin: 0 auto; padding: 2rem 1rem; display: flex; flex-direction: column; gap: 1.5rem; }
+      .boot h1 { margin: 0; font-size: 2.25rem; line-height: 2.5rem; font-weight: 900; letter-spacing: -0.025em; }
+      .boot p { margin: 0; color: var(--boot-sub); }
+      .boot-card { box-sizing: border-box; min-height: 9rem; display: flex; flex-direction: column; gap: 0.75rem; padding: 1.25rem; border: 1px solid var(--boot-border); border-radius: 0.875rem; }
+      .boot-bar { height: 1rem; border-radius: 0.5rem; background: var(--boot-muted); }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot" aria-busy="true">
+        <header>
+          <h1>Earlii</h1>
+          <p>Fresh roles, before everyone else.</p>
+        </header>
+        <div class="boot-card">
+          <div class="boot-bar" style="height: 1.5rem; width: 7rem"></div>
+          <div class="boot-bar" style="width: 75%"></div>
+          <div class="boot-bar" style="width: 50%"></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
