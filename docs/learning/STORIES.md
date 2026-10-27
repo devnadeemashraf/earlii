@@ -160,3 +160,28 @@ Interview-ready write-ups of real decisions in this codebase. One entry per nota
 - the rule is covered by `scripts/test/banned.test.mjs`.
 
 **Soundbite:** "When a rule matters, I make it executable once and reuse it everywhere it can be broken: the editor, commits, PR text and CI."
+
+---
+
+## S-006 · A private file almost shipped: incident and fix   (P0-01 review)
+
+**Problem:** the owner asked to keep SPEC private. I gitignored it and staged its removal. But while splitting commits I reset the index and ran `git add docs/SPEC.md`. For a file that is *already tracked*, `.gitignore` does nothing, so git staged it as **modified** instead of deleted. The PR then carried SPEC, and a squash merge would have published it to `main`. I had also reported "it won't be merged", which was wrong.
+
+**How it was caught:** while preparing the owner-approved history rewrite, I diffed the tree before and after the rewrite. The diff showed SPEC still tracked at the branch tip.
+
+**Fix:**
+- `git filter-branch --index-filter 'git rm --cached --ignore-unmatch …'` over the PR commits only;
+- verified that zero commits contain the file and no SPEC text is reachable;
+- restored the local file from the backup ref;
+- the owner force-pushes, and GitHub Support purges cached views.
+
+**Prevention:**
+- a test fails whenever either private file is tracked; it was proven by staging SPEC into a throwaway index and watching the test fail;
+- the Bash guard denies `git add` of the private paths, forced or not.
+
+**Result:**
+- 0 of 7 rewritten commits contain the files;
+- the final tree is otherwise identical;
+- 166 tests pass.
+
+**Soundbite:** "I nearly leaked a private spec: `.gitignore` doesn't untrack a file that's already tracked, and I'd re-staged it by accident. I caught it by diffing the tree before and after a history rewrite, purged it from every commit, then made it impossible to repeat with a test and a guard. The lesson I took away: verify the end state, don't assume the steps worked."

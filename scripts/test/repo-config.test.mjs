@@ -2,6 +2,7 @@
 // and every skill and subagent has the frontmatter Claude Code needs.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -79,6 +80,20 @@ describe("skills and subagents", () => {
       assert.ok(fm.tools);
     });
   }
+});
+
+describe("private inputs", () => {
+  it("docs/SPEC.md and the scaffold prompt are never tracked", () => {
+    const tracked = spawnSync(
+      "git",
+      ["ls-files", "docs/SPEC.md", "docs/project-scaffold-claude.md"],
+      {
+        cwd: root,
+        encoding: "utf8",
+      },
+    ).stdout.trim();
+    assert.equal(tracked, "", `private files are tracked: ${tracked}`);
+  });
 });
 
 describe("POINTER.md", () => {

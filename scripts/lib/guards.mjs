@@ -8,6 +8,8 @@ import { splitCommands, stripPrefixes, tokenize } from "./shell.mjs";
 
 export const PROTECTED_BRANCHES = ["main", "master"];
 export const POINTER_PATH = "docs/POINTER.md";
+/** Owner-private inputs: gitignored, never committed or published. */
+export const PRIVATE_PATHS = ["docs/SPEC.md", "docs/project-scaffold-claude.md"];
 
 const allow = () => ({ decision: "allow" });
 const deny = (reason) => ({ decision: "deny", reason });
@@ -75,6 +77,17 @@ function evaluateGit(tokens, ctx, rawSegment) {
         return deny("AI-attribution trailers or footers are not allowed in this repo.");
       }
       if (bannedCharMessage(rawSegment)) return deny(bannedCharMessage(rawSegment));
+      return allow();
+    }
+    case "add":
+    case "stage": {
+      const forced = args.some((a) => a === "-f" || a === "--force" || /^-[a-zA-Z]*f/.test(a));
+      const touchesPrivate = args.some((a) => PRIVATE_PATHS.includes(normalizeRepoPath(a)));
+      if (touchesPrivate || (forced && args.some((a) => /SPEC|scaffold/i.test(a)))) {
+        return deny(
+          "docs/SPEC.md and the scaffold prompt are private and must never be committed.",
+        );
+      }
       return allow();
     }
     case "push":

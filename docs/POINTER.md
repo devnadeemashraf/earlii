@@ -30,7 +30,7 @@ _(empty)_
 ## Open questions for the human
 
 1. **Merge P0-01**, then enable branch protection on `main` (docs/SETUP.md section 5, one command).
-2. **SPEC history:** `docs/SPEC.md` is untracked now, but it is still visible in PR #1's first kit commit (`408c268`). Squash-merging keeps it off `main`. Should the branch history be rewritten to purge it? That needs a force-push of the PR branch, which only you can approve.
+2. **SPEC purge:** the PR branch history was rewritten without SPEC (owner-approved 2026-10-27). The owner force-pushes it, then asks GitHub Support to drop cached views of the old commits (docs/SETUP.md "Purging leaked files").
 3. Optional: set `CONTEXT7_API_KEY` to enable the docs-lookup MCP (docs/AI_WORKFLOW.md).
 
 ## Environment notes and gotchas
@@ -41,7 +41,7 @@ _(empty)_
 - `golangci-lint fmt <files>` formats only the files given (verified). The multi-module loops in `Taskfile.yml` (`go list -m`) are untested until P0-02: verify them there.
 - CI sets `MISE_DISABLE_TOOLS` to skip installing gopls; `doctor` honours it.
 - Dependabot's support for pnpm 12 lockfiles is UNVERIFIED. If its npm PRs fail, see R-01.
-- `docs/SPEC.md` and `docs/project-scaffold-claude.md` are gitignored (private and local-only). Fresh clones and CI don't have SPEC.
+- `docs/SPEC.md` and `docs/project-scaffold-claude.md` are gitignored (private and local-only). Fresh clones and CI don't have SPEC. A test fails if either is ever tracked, and the Bash guard blocks `git add` of them. Note: `.gitignore` doesn't untrack a file that is already tracked.
 - TS aliases: copy `scripts/test/fixtures/ts-alias/` (tsconfig `paths` + `resolve.tsconfigPaths`). Biome rejects `../` only under `apps/**/src` and `packages/**/src`.
 - Biome rewrites unicode escapes in JS strings into literal characters. To refer to a banned character in code, use `String.fromCodePoint(0xa7)`.
 - Biome's stdin mode exits 1 whenever it would change anything, so test lint rules on real files (see `ts-alias.test.mjs`).

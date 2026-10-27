@@ -83,6 +83,10 @@ describe("evaluateBash: abuse cases", () => {
     "EARLII_ALLOW_MAIN_PUSH=1 git push origin main",
     "git commit -m 'feat: x' -m 'Co-Authored-By: Claude <noreply@anthropic.com>'",
     "gh pr create --title x --body 'Generated with Claude Code'",
+    "git add docs/SPEC.md",
+    "git add -f docs/SPEC.md",
+    "git add --force docs/project-scaffold-claude.md",
+    "git add ./docs/SPEC.md",
   ]) {
     it(`denies: ${cmd}`, () => assert.equal(decide(cmd), "deny"));
   }
