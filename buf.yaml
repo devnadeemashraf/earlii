@@ -1,0 +1,11 @@
+# buf (https://buf.build/docs): lint and breaking-change rules for proto/.
+# `task lint:proto` runs both; `task gen` runs buf.gen.yaml (ADR-0006).
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

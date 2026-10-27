@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package earlii.v1;
+
+option go_package = "github.com/devnadeemashraf/earlii/backend/gen/api/earlii/v1;earliiv1";
+
+// HealthService tells a client whether the API can serve it. Orchestrators use
+// the plain HTTP probes (/healthz, /readyz) instead; both read the same checks.
+service HealthService {
+  // Check reports the API's readiness. A failing dependency is a normal
+  // response with STATUS_NOT_SERVING, not an error: the API is up and says so.
+  rpc Check(CheckRequest) returns (CheckResponse) {
+    // No side effects, so Connect clients may call it with HTTP GET.
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message CheckRequest {}
+
+message CheckResponse {
+  Status status = 1;
+  // One entry per dependency, sorted by name. Details never leave the server.
+  repeated DependencyCheck checks = 2;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_SERVING = 1;
+  STATUS_NOT_SERVING = 2;
+}
+
+message DependencyCheck {
+  // An identifier chosen by the server, such as "postgres".
+  string name = 1;
+  bool ok = 2;
+}

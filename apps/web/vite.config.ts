@@ -4,10 +4,12 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-// Only the Go API's probe is proxied, never "/": a catch-all would hand the dev server's LAN
-// exposure to every API route. 127.0.0.1, not localhost, because Node may resolve localhost to
-// ::1 while the API listens on IPv4. P0-05 adds the Connect prefix.
+// Only the procedures the app calls are proxied, each matched exactly (a query string is allowed,
+// for Connect GET), never "/" or a service prefix: either would hand the dev server's LAN exposure
+// to every API route, including ones added later. 127.0.0.1, not localhost, because Node may
+// resolve localhost to ::1 while the API listens on IPv4.
 const apiTarget = "http://127.0.0.1:8080";
+const apiProxyRoutes = ["^/earlii\\.v1\\.HealthService/Check(\\?|$)"];
 
 // The private, gitignored docs sit inside the pnpm workspace root, which Vite allows by default.
 // `task dev:web:lan` exposes the dev server on the LAN, so anyone on the same Wi-Fi could fetch
@@ -32,7 +34,7 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   server: {
     fs: { strict: true, allow: [".", "../../node_modules"], deny: fsDeny },
-    proxy: { "^/readyz$": { target: apiTarget } },
+    proxy: Object.fromEntries(apiProxyRoutes.map((route) => [route, { target: apiTarget }])),
   },
   test: {
     environment: "jsdom",

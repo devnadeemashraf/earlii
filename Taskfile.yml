@@ -53,6 +53,8 @@ tasks:
       - task: lint:types
       - task: lint:go
       - task: lint:sql
+      - task: lint:proto
+      - task: lint:gen
       - task: lint:migrations
       - task: lint:actions
       - task: lint:secrets
@@ -83,7 +85,8 @@ tasks:
       - golangci-lint config verify
       - |
         if [ -f go.work ]; then
-          for d in $(go list -m -f '{{"{{"}}.Dir{{"}}"}}'); do (cd "$d" && golangci-lint run ./...); done
+          # go.mod must be tidy: a direct import marked indirect, or a stale require, fails here.
+          for d in $(go list -m -f '{{"{{"}}.Dir{{"}}"}}'); do (cd "$d" && go mod tidy -diff && golangci-lint run ./...); done
         else
           echo "skip: no Go modules yet (P0-02)"
         fi
@@ -92,6 +95,17 @@ tasks:
     desc: Fail if backend/gen/db is stale or a query doesn't compile (sqlc diff)
     cmds:
       - sqlc diff -f backend/sqlc.yaml
+
+  lint:proto:
+    desc: buf lint, then buf breaking against main's merge base (ADR-0006)
+    cmds:
+      - buf lint
+      - node scripts/check-proto-breaking.mjs
+
+  lint:gen:
+    desc: Fail if the committed buf output (backend/gen/api, packages/api/src/gen) is stale
+    cmds:
+      - node scripts/check-gen.mjs
 
   lint:migrations:
     desc: Forward-only migrations (ADR-0005)
@@ -180,9 +194,10 @@ tasks:
         fi
 
   gen:
-    desc: Regenerate code (sqlc into backend/gen/db)
+    desc: Regenerate code (sqlc into backend/gen/db; buf into backend/gen/api and packages/api/src/gen)
     cmds:
       - sqlc generate -f backend/sqlc.yaml
+      - buf generate
 
   dev:
     desc: Start Postgres and Grafana, migrate, then run the API and the web app (Ctrl-C stops both)
@@ -214,7 +229,7 @@ tasks:
       - EARLII_ENV=dev EARLII_DATABASE_URL=postgres://earlii:earlii-dev-only@127.0.0.1:5432/earlii?sslmode=disable go run ./cmd/earlii migrate
 
   dev:web:
-    desc: Run the web app on localhost:5173 (proxies /readyz to the API on 127.0.0.1:8080)
+    desc: Run the web app on localhost:5173 (proxies the Health RPC to the API on 127.0.0.1:8080)
     cmds:
       - pnpm --filter ./apps/web dev
 

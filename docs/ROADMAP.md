@@ -72,7 +72,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-03-1 *explain it*: file-based routing with codegen vs a hand-written route tree.
 
 ### P0-04 · Local stack, migrations, sqlc
-- **Spec:** 3, X, Z [MVP] · **Size:** M · **Status:** in review (#5) · D-07 and D-10 decided in [ADR-0005](adr/0005-migrations.md)
+- **Spec:** 3, X, Z [MVP] · **Size:** M · **Status:** done (#5) · D-07 and D-10 decided in [ADR-0005](adr/0005-migrations.md)
 - **Acceptance:**
   - `compose.yaml` with Postgres and `grafana/otel-lgtm`;
   - `task dev` brings everything up;
@@ -84,7 +84,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-04-1 *design it*: an ADR on migration strategy (expand/contract, forward-only, locking).
 
 ### P0-05 · Contracts: Protobuf + Connect
-- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** todo
+- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** in review (ADR-0006)
 - **Acceptance:**
   - `proto/earlii/v1/health.proto`;
   - `buf lint`, plus `buf breaking` against main in CI;
@@ -414,6 +414,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-28 | P0-05 in review, stacked on BP-002 (#6): `proto/earlii/v1/health.proto`, connect-go v2 server with request-ID, access-log and recovery interceptors, generated TS client in `@earlii/api`, the web calls `Health` with a Connect GET, `buf lint`/`buf breaking`/stale-codegen checks (ADR-0006). |
 | 2026-10-28 | P0-04 merged (#5). BP-002 in review: `lint:migrations` read main's files trimmed, so every PR and main itself failed `task check`; it now reads exact bytes. P0-05 in progress, stacked on it. |
 | 2026-10-28 | BP-001 merged (#4). P0-04 in review (#5): compose stack, `earlii migrate` (River + goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, DB integration tests in CI. D-07 and D-10 decided (ADR-0005). Starting River's client moved to P0-07, which needs it. |
 | 2026-10-27 | P0-03 merged (#3). BP-001 in review (#4): `task dev:api` binds `127.0.0.1:8080` only. |

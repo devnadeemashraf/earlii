@@ -5,15 +5,16 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **build** (switched 2026-10-27): the AI builds every item; each PR gets a private study guide (AGENTS.md section 5).
-- P0-01 to P0-04 and BP-001 (#1 to #5) are merged. **BP-002 (lint:migrations false positive, main CI red since #5) is in review** on `fix/BP-002-migration-lint-trailing-newline`. P0-05 is in progress, stacked on it.
+- P0-01 to P0-04 and BP-001 (#1 to #5) are merged. **BP-002 (#6) is in review** (main's CI is red until it merges). **P0-05 (Protobuf + Connect) is in review**, stacked on #6: merge #6 first.
 - Works now:
-  - Go: `earlii api|worker|scheduler|migrate`, env config (`EARLII_DATABASE_URL` required; prod demands verify-full/verify-ca TLS), JSON `slog`, `/healthz` + `/readyz` (a `postgres` check), graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
+  - Go: `earlii api|worker|scheduler|migrate`, env config (`EARLII_DATABASE_URL` required; prod demands verify-full/verify-ca TLS), JSON `slog`, `/healthz` + `/readyz` (a `postgres` check, shared and cached 1 s), graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
   - DB: `task dev` (compose Postgres 18 + Grafana/OTLP, migrate, API, web); `earlii migrate` applies River's 8 migrations then ours (goose, embedded) under one advisory lock (ADR-0005); sqlc into `backend/gen/db` (`task gen`); `lint:migrations` enforces forward-only; DB integration tests run locally with the stack up and in CI's `integration` job;
-  - web: `apps/web` (Vite 8, React 19, TanStack Router file routes + Query, Tailwind 4, shadcn/ui); `/` shows an inline HTML skeleton, then the API status from `/readyz` (via the dev proxy), with not-found and error states with retry;
+  - contracts (ADR-0006): `proto/earlii/v1/health.proto`; `task gen` (buf, local plugins) into `backend/gen/api` and `packages/api` (`@earlii/api`); `lint:proto` (buf lint + breaking vs main), `lint:gen` (stale output); connect-go v2 server in `api` mode with request-ID, access-log and recovery interceptors;
+  - web: `apps/web` (Vite 8, React 19, TanStack Router file routes + Query, Tailwind 4, shadcn/ui); `/` shows an inline HTML skeleton, then the API status from `HealthService.Check` (generated client, Connect GET, via the dev proxy), with not-found and error states with retry;
   - a PWA manifest with SVG, 192/512, maskable and Apple icons (rendered by `scripts/render-icons.mjs`); no service worker yet;
-  - `task dev:web` (localhost) and `task dev:web:lan` (phone); the dev server is locked down (fs allow/deny, Host check, one proxied path);
-  - `task check` now runs `build:web`: the production build, a stale route tree check and the initial-JS budget (about 113 kB of 170 kB gzip).
-- No tables yet (P1-01) and no contracts (P0-05). River's client isn't started yet (P0-07).
+  - `task dev:web` (localhost) and `task dev:web:lan` (phone); the dev server is locked down (fs allow/deny, Host check, one exact proxied procedure);
+  - `task check` now runs `build:web`: the production build, a stale route tree check and the initial-JS budget (144.92 kB of 170 kB gzip; Connect added 31.99 kB).
+- No tables yet (P1-01). River's client isn't started yet (P0-07).
 
 ## FIX-FIRST QUEUE
 
@@ -21,19 +22,19 @@
 
 ## NEXT UP
 
-**P0-05 · Contracts: Protobuf + Connect** (ROADMAP section Phase 0), in progress on `feat/P0-05-contracts-connect`, stacked on BP-002.
+**P0-06 · One image, many containers** (ROADMAP section Phase 0), once #6 and P0-05 are merged.
 
-- **Why now:** the web app still calls `/readyz` directly; every later RPC needs the contract pipeline (buf, codegen, `buf breaking`).
-- **Start at:** pick connect-go v1 vs v2 deliberately (VERSIONS notes both), pin buf in `mise.toml`, add `proto/earlii/v1/health.proto` and `task gen` targets beside sqlc's.
-- **Done when:** the P0-05 acceptance list in ROADMAP is met (`buf lint`, `buf breaking` in CI, generated Go server and TS client, the web app calls `Health`).
-- **Study:** a Connect interceptor for request IDs and access logs (the middleware pattern).
+- **Why now:** every mode already runs from one binary; deploys (D-04) and the P0-07 trace demo need it containerised.
+- **Start at:** a multi-stage Dockerfile building a static `CGO_ENABLED=0` binary, compose services `api`, `worker`, `scheduler` on that image, hadolint + Trivy in CI. Decide D-04 (open question 3) first.
+- **Done when:** the P0-06 acceptance list in ROADMAP is met (image at most 30 MB, CI smoke test hits `/healthz`).
+- **Study:** P0-06-1, explain each image layer and get under budget.
 
 ## Open questions for the human
 
 1. **Make `integration` a required check** on the `protect-main` ruleset (#5 adds the job; today 3 checks are required).
 2. **SPEC purge follow-up:** ask GitHub Support to drop cached views of the old P0-01 commits (docs/SETUP.md "Purging leaked files"), if not done.
 3. **Hosting the worker and DB (D-04):** prod config requires a certificate-verifying `sslmode` and `earlii migrate` needs a direct (non-pooled) connection; check Render supports both (VERSIONS UNVERIFIED). Render's free tier has no background workers. A worker run as a free web service sleeps after 15 min idle, which would break polling. Decide before P0-06.
-4. **npm supply-chain settings:** pnpm 12 supports an explicit build-script allowlist (`allowBuilds`) and a minimum release age for new versions. Neither is set in `pnpm-workspace.yaml`. Worth a small chore PR (R-01)? No P0-03 dependency needed a build script.
+4. **npm supply-chain settings:** pnpm 12 supports an explicit build-script allowlist (`allowBuilds`); its minimum release age is on by default (P0-05 hit it: connect-es 2.3.0 was a day old, so 2.2.0 is pinned, with no exclusion). Pin the age explicitly in `pnpm-workspace.yaml` in a small chore PR (R-01)?
 5. Optional: set `CONTEXT7_API_KEY` to enable the docs-lookup MCP (docs/AI_WORKFLOW.md). Optional: `npx playwright install chrome` so the Playwright MCP (`/snapshot`) can run; it isn't installed on this box.
 
 ## Environment notes and gotchas
@@ -54,19 +55,22 @@
 - **Task lets the shell's environment win over a task's `env:` block.** Tasks that run the binary set variables inline (`KEY=value go run ...`); a test enforces it.
 - Postgres: `pg_isready` without `-h` probes the unix socket, which the image's first-run init serves before restarting. Health checks use `-h 127.0.0.1`. The Windows box's Docker Desktop needs starting before `task dev`.
 - slog's JSON handler encodes nested structs with `encoding/json`, ignoring `String`/`LogValue` on fields: `config.Secret` also implements `MarshalText`.
+- connect-go is **v2** (`connectrpc.com/connect/v2`): agents remember v1's API (`connect.Request[T]`, `NewXxxHandler`). Check every call with `go doc` (ADR-0006). wrapcheck needs `connect(/v2)?` in its signature regexps.
+- A Claude `Edit`/`Write` can turn a `\u202e`-style escape into the raw character; build such test strings at runtime (`string(rune(0x202e))`, `String.fromCodePoint`).
 - `scripts/lib/git.mjs` `git()` trims stdout: fine for refs and lists, wrong for file contents. Read files at a commit with `showFile` (BP-002).
 - In Node scripts, `String.replace(a, b)` treats `` $` ``, `$'` and `$&` in `b` as patterns, which bites when `b` is Markdown with backticks. Pass `() => b`.
 
 ## Learning
 
 - **Private study guides** live in `docs/learning/` (gitignored: never `git add` it; the Bash guard denies it). Index and progress: `docs/learning/README.md`.
-- **Latest:** P0-04 (`docs/learning/P0-04-local-stack-migrations/`), then BP-001, P0-03, P0-02, P0-01. Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README.
-- **Next guide:** P0-05, written in that PR after `/handoff`.
+- **Latest:** P0-05 (`docs/learning/P0-05-contracts-connect/`), then BP-002, P0-04, BP-001, P0-03, P0-02, P0-01. Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README.
+- **Next guide:** P0-06, written in that PR after `/handoff`.
 
 ## Recent history
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
+| P0-05 PR | P0-05 | `health.proto`, buf lint/breaking/stale-codegen checks, connect-go v2 server (request ID, access log, recovery; 64 KiB cap; protocol marker required), shared cached readiness `Checker`, `@earlii/api` TS client, web calls `Health` by Connect GET through a guarded fetch (ADR-0006) | yes: `task dev`, open http://localhost:5173 (status card), `task dev:down`, reload (degraded card), and see the `rpc` log line |
 | #6 | BP-002 | `lint:migrations` reads main's migrations byte-exact (`showFile`), fixing a false "changed after merge" that turned main red; end-to-end CLI test | no |
 | #5 | P0-04 | Compose stack (Postgres 18, otel-lgtm; loopback only), `earlii migrate` (River then goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, strict DB URL config, forward-only lint, DB integration tests in CI (ADR-0005) | yes: `task dev`, curl `127.0.0.1:8080/readyz` (200), `task dev:down`, curl again (503) |
 | #4 | BP-001 | `task dev:api` binds `127.0.0.1:8080` only; a test keeps it equal to the web dev proxy target | yes: `task dev:api`, curl `127.0.0.1:8080/readyz` (200) and `<LAN IP>:8080/readyz` (refused) |
