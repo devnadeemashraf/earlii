@@ -72,7 +72,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-03-1 *explain it*: file-based routing with codegen vs a hand-written route tree.
 
 ### P0-04 · Local stack, migrations, sqlc
-- **Spec:** 3, X, Z [MVP] · **Size:** M · **Status:** todo · **Blocked by:** D-07, D-10 (decided in the item's design step)
+- **Spec:** 3, X, Z [MVP] · **Size:** M · **Status:** in review (#5) · D-07 and D-10 decided in [ADR-0005](adr/0005-migrations.md)
 - **Acceptance:**
   - `compose.yaml` with Postgres and `grafana/otel-lgtm`;
   - `task dev` brings everything up;
@@ -108,6 +108,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Acceptance:**
   - OTel traces, metrics and logs (slog bridge);
   - RED metrics per RPC;
+  - worker mode starts River's client (with a readiness check), and the API can enqueue (deferred from P0-04);
   - trace context propagated from API → River job → worker;
   - local Grafana shows one trace spanning both.
 - **Tests:** an in-memory exporter asserts the parent/child spans across an enqueued job.
@@ -361,10 +362,10 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | D-04 | Production Postgres host (Render's free DB expires after 30 days) | open | A paid Render basic DB or another free Postgres host; compare at P2-17 | P2-17 |
 | D-05 | Email provider for digests (free tier, India deliverability) | open | Choose from 2–3 providers with free tiers in the P2-13 design step | P2-13 |
 | D-06 | Sign-in methods at launch | **decided** 2026-10-27 (SCP-01): Google only for MVP; other methods decided later, when needed | — | — |
-| D-07 | Migration tool (goose vs tern vs Atlas) | open | goose | P0-04 |
+| D-07 | Migration tool (goose vs tern vs Atlas) | **decided** 2026-10-28 · [ADR-0005](adr/0005-migrations.md): goose embedded in the binary, River first, an explicit `earlii migrate` | — | — |
 | D-08 | Keka / Darwinbox / Zoho Recruit public feeds and terms | open (SPEC section 8) | Excluded until verified | Phase 3 connectors |
 | D-09 | Resume parsing: paid LLM tier vs deterministic parser | open | Paid, no-training tier only | E-02 |
-| D-10 | DB integration tests: testcontainers vs a CI service container | open | CI service container (works on GitHub Linux runners) | P0-04 |
+| D-10 | DB integration tests: testcontainers vs a CI service container | **decided** 2026-10-28 · [ADR-0005](adr/0005-migrations.md): a CI service container in an ubuntu `integration` job | — | — |
 | D-11 | Licence: proprietary, all rights reserved | **decided** by the owner 2026-10-27 | — | — |
 
 ## Spec change proposals
@@ -413,6 +414,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-28 | BP-001 merged (#4). P0-04 in review (#5): compose stack, `earlii migrate` (River + goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, DB integration tests in CI. D-07 and D-10 decided (ADR-0005). Starting River's client moved to P0-07, which needs it. |
 | 2026-10-27 | P0-03 merged (#3). BP-001 in review (#4): `task dev:api` binds `127.0.0.1:8080` only. |
 | 2026-10-27 | P0-02 merged (#2). P0-03 in review (#3): web skeleton, PWA manifest, the bundle budget gate. |
 | 2026-10-27 | **Mode: build** (owner decision). The AI builds every item; each PR gets a private study guide with labs in `docs/learning/` (gitignored). The P0-02 drain is implemented in #2, and the old LEARN exercises were folded into the P0-01 and P0-02 guides. |

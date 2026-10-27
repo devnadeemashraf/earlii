@@ -2,8 +2,9 @@
 // container from the same image (ADR-0003):
 //
 //	earlii api        serves the API
-//	earlii worker     runs background jobs (River, P0-04)
+//	earlii worker     runs background jobs (River, P0-07)
 //	earlii scheduler  enqueues periodic jobs (P1-07)
+//	earlii migrate    applies the schema, then exits (ADR-0005)
 //
 // Configuration comes from the environment only (see internal/config).
 package main
@@ -24,15 +25,16 @@ import (
 	"github.com/devnadeemashraf/earlii/backend/internal/config"
 	"github.com/devnadeemashraf/earlii/backend/internal/health"
 	"github.com/devnadeemashraf/earlii/backend/internal/httpserver"
+	"github.com/devnadeemashraf/earlii/backend/internal/postgres"
 )
 
-const usage = "usage: earlii api|worker|scheduler\n"
+const usage = "usage: earlii api|worker|scheduler|migrate\n"
 
 // readyTimeout bounds all readiness checks together, well under a typical
 // orchestrator probe timeout.
 const readyTimeout = 2 * time.Second
 
-var modes = []string{"api", "worker", "scheduler"}
+var modes = []string{"api", "worker", "scheduler", "migrate"}
 
 func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Environ(), os.Stdout, os.Stderr))
@@ -72,6 +74,14 @@ func run(ctx context.Context, args, environ []string, stdout, stderr io.Writer) 
 		stop()
 	}()
 
+	if mode == "migrate" {
+		if err := migrate(ctx, cfg, logger); err != nil {
+			logger.ErrorContext(ctx, "migrate failed", slog.String("error", err.Error()))
+			return 1
+		}
+		return 0
+	}
+
 	if err := serve(ctx, cfg, logger); err != nil {
 		logger.ErrorContext(ctx, "stopped with error", slog.String("error", err.Error()))
 		return 1
@@ -88,11 +98,32 @@ func utc(groups []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-// serve exposes the probes on cfg.HTTPAddr until ctx is done. Every mode
-// serves them, so Compose and Render can health-check any container the same
-// way.
-// TODO(P0-04): start the River client in worker mode and add its checks.
+// migrate applies River's and our migrations. It is a one-shot: a deploy runs
+// it before the long-running modes, which never migrate themselves.
+func migrate(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	res, err := postgres.Migrate(ctx, cfg.DatabaseURL.Reveal(), logger)
+	if err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
+	logger.InfoContext(ctx, "migrated", slog.Any("river_versions", res.River), slog.Any("app_versions", res.App))
+	return nil
+}
+
+// serve exposes the probes on cfg.HTTPAddr until ctx is done. Every
+// long-running mode serves them, so Compose and Render can health-check any
+// container the same way.
+// TODO(P0-07): start the River client in worker mode and add its check.
 func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	// The pool connects on first use, so the process boots while Postgres is
+	// down and /readyz says so.
+	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL.Reveal())
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	// Deferred first, so it runs last: after the drain, when no handler can
+	// still be using a connection.
+	defer pool.Close()
+
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", cfg.HTTPAddr)
 	if err != nil {
@@ -101,7 +132,8 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", health.Liveness())
-	mux.Handle("GET /readyz", health.Readiness(logger, readyTimeout))
+	mux.Handle("GET /readyz", health.Readiness(logger, readyTimeout,
+		health.Check{Name: "postgres", Fn: pool.Ping}))
 
 	logger.InfoContext(ctx, "listening", slog.String("addr", ln.Addr().String()),
 		slog.String("env", string(cfg.Env)))

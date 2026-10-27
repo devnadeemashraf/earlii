@@ -1,0 +1,57 @@
+# Local development stack. `task dev` starts it, migrates, then runs the API
+# and the web app; `task dev:down` stops it (data stays in named volumes).
+#
+# Every published port is bound to 127.0.0.1 (a test enforces it): nothing
+# here is reachable from the Wi-Fi, and Docker's published ports would
+# otherwise bypass host firewalls such as ufw. The app modes join in P0-06,
+# when there is an image to run.
+name: earlii
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      # Dev-only credentials for a loopback-only database. Never reuse them;
+      # prod gets its URL from the host's secret store.
+      POSTGRES_USER: earlii
+      POSTGRES_PASSWORD: earlii-dev-only
+      POSTGRES_DB: earlii
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Postgres 18 images keep data in /var/lib/postgresql/<major>/docker, so
+      # the volume mounts the parent: a later major upgrade sits beside it.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      # -h: TCP, not the socket. First-run init serves the socket only, then restarts.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U earlii -d earlii"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [db]
+
+  # Grafana, Loki, Tempo and Mimir behind one OTLP endpoint (P0-07 sends to it).
+  lgtm:
+    image: grafana/otel-lgtm:0.38.1
+    environment:
+      # The image enables anonymous Admin. It stays loopback-only, and Grafana
+      # redirects any other Host header, so a web page can't drive it through
+      # DNS rebinding.
+      GF_SERVER_DOMAIN: localhost
+      GF_SERVER_ENFORCE_DOMAIN: "true"
+    ports:
+      - "127.0.0.1:3000:3000" # Grafana
+      - "127.0.0.1:4317:4317" # OTLP gRPC
+      - "127.0.0.1:4318:4318" # OTLP HTTP
+    volumes:
+      - lgtm:/data
+    # Its own network: Grafana can't reach Postgres.
+    networks: [obs]
+
+volumes:
+  pgdata:
+  lgtm:
+
+networks:
+  db:
+  obs:

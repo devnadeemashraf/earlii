@@ -20,6 +20,7 @@ Every version and external fact the project relies on, with the date it was veri
 | TypeScript | 7.0.2 | 2026-10-27 | `npm view typescript version`. Native compiler; `tsc` works with `paths` without `baseUrl` (verified on the alias fixture) |
 | Vite | 8.3.5 | 2026-10-27 | `npm view vite version` |
 | Vitest | 5.0.5 | 2026-10-27 | `npm view vitest version`. Runs on Vite 8 config; verified on the alias fixture |
+| sqlc | 1.31.1 | 2026-10-27 | `mise ls-remote sqlc` (aqua `sqlc-dev/sqlc`); GitHub releases ship a native windows_amd64 build. `sqlc generate` verified on the Windows dev box (no cgo) |
 | mise (installer, not pinned) | 2026.10.20 latest; 2026.10.19 installed locally | 2026-10-27 | https://github.com/jdx/mise/releases |
 
 ## Pinned GitHub Actions (by commit SHA)
@@ -35,6 +36,16 @@ Every version and external fact the project relies on, with the date it was veri
 | :-- | :-- | :-- | :-- |
 | Go directive | 1.27.3 (matches `mise.toml`) | 2026-10-27 | `go mod init` with the pinned toolchain |
 | golang.org/x/sync (errgroup) | v0.24.0 | 2026-10-27 | `go list -m -json golang.org/x/sync@latest` (published 2026-09-23); used by `httpserver.Serve` (P0-02) |
+| github.com/jackc/pgx/v5 | v5.11.0 | 2026-10-27 | `go list -m -json ...@latest` (published 2026-09-07). Pool, connections, `stdlib` adapter for goose (P0-04) |
+| github.com/riverqueue/river (+ riverdriver/riverpgxv5) | v0.50.0 | 2026-10-27 | Module proxy (published 2026-10-27). Chosen over v0.49.0 for its fixes (durable periodic jobs, notifier backoff); its breaking change (nested resumable steps) doesn't touch us. Only `rivermigrate` is used until P1-07 |
+| github.com/pressly/goose/v3 | v3.29.0 | 2026-10-27 | Module proxy (published 2026-10-11). Migrations as a library (ADR-0005) |
+
+## Pinned container images (`compose.yaml`, CI service)
+
+| Image | Tag | Verified | Source |
+| :-- | :-- | :-- | :-- |
+| postgres | `18.6-alpine` (digest `sha256:10a5c69a…`) | 2026-10-27 | `docker pull`; image env `PG_VERSION=18.6`, `PGDATA=/var/lib/postgresql/18/docker`, volume `/var/lib/postgresql` |
+| grafana/otel-lgtm | `0.38.1` (digest `sha256:0df9bc14…`) | 2026-10-27 | `docker pull`; exposes 3000, 4317, 4318 |
 
 ## Pinned npm packages (`apps/web/package.json`, exact pins)
 
@@ -65,12 +76,6 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | google.golang.org/protobuf | v1.36.12 | P0-05 | 2026-10-27 | Go module proxy |
 | @connectrpc/connect, connect-web | 2.2.0 | P0-05 | 2026-10-27 | npm registry |
 | @bufbuild/protobuf, protoc-gen-es | 2.16.0 | P0-05 | 2026-10-27 | npm registry |
-| sqlc | 1.31.1 | P0-04 | 2026-10-27 | GitHub releases; Go module proxy |
-| River | v0.50.0 | P0-04 | 2026-10-27 | Go module proxy; released 2026-10-27 (same day: let it settle) |
-| pgx | v5.11.0 | P0-04 | 2026-10-27 | Go module proxy |
-| goose | v3.29.0 | P0-04 (D-07) | 2026-10-27 | Go module proxy |
-| PostgreSQL image | 18.6 (`postgres:18-alpine`) | P0-04 | 2026-10-27 | Docker Hub tags API |
-| grafana/otel-lgtm | v0.38.1 | P0-04 | 2026-10-27 | GitHub releases |
 | OpenTelemetry Go | v1.47.0 | P0-07 | 2026-10-27 | Go module proxy |
 | motion | 14.6.0 | P2-02 | 2026-10-27 | npm registry |
 | Expo | 58.0.19 | E-07 | 2026-10-27 | npm registry |
@@ -117,6 +122,16 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | Biome 2.6 needs `css.parser.tailwindDirectives: true` to parse Tailwind 4's `@theme` and `@apply` | 2026-10-27 | `configuration_schema.json`; Biome parse error without it |
 | shadcn CLI 4.23.0 `init` prompts for a preset even with `--yes` (pass `--preset`), and its radix-nova preset rewrites `cn()` to the third-party `cn` package and adds Geist, radix-ui, lucide-react and `shadcn` as dependencies. We keep our own `cn()` and add those only when a component needs them | 2026-10-27 | Ran in a scratch copy |
 | `zlib.crc32` is built into Node 24 (used by the zero-dependency PNG encoder in `scripts/lib/png.mjs`) | 2026-10-27 | `node -e "require('zlib').crc32"` on Node 24.22 |
+| pgx v5.11.0 `ParseConfigError.Error()` quotes the connection string with the password redacted on a **best-effort** basis only, so config never wraps it | 2026-10-28 | `pgconn/errors.go` (`redactPW`) in the module cache |
+| pgx v5.11.0 `pgconn.ParseConfigOptions.ConnStringAllowedKeys` rejects unlisted keys (including every repeated `ssl`/`sslmode`) before reading files; env vars such as `PGSSLMODE` still apply | 2026-10-28 | `go doc github.com/jackc/pgx/v5/pgconn.ParseConfigOptions` |
+| pgx v5.11.0 `sslmode=require` sets `InsecureSkipVerify` (no certificate check); `verify-ca` uses a custom `VerifyPeerCertificate`; `prefer` adds a plaintext fallback | 2026-10-28 | `pgconn/config.go` (`configTLS`); proven by `config_test.go` |
+| pgx v5.11.0 applies `ConnectTimeout` as a context deadline on the whole connect, so setting the field after parsing works; `connect_timeout=0` means no timeout | 2026-10-28 | `pgconn/pgconn.go` (`ConnectConfig`) |
+| `pgxpool.NewWithConfig` doesn't connect when `MinConns` is 0; the first acquire does | 2026-10-28 | `pgxpool/pool.go`; proven by `TestNewPoolIsLazy` |
+| River v0.50.0: `rivermigrate` takes no advisory lock; `MigrateTx` is deprecated because some migrations can't share one transaction; 8 migrations on the main line | 2026-10-28 | `go doc github.com/riverqueue/river/rivermigrate`; `rivermigrate/river_migrate.go`; `task migrate` output |
+| goose v3.29.0 `Provider` takes no lock unless given `WithSessionLocker`/`WithLocker`, and logs with a plain-text default logger unless given `WithSlog` | 2026-10-28 | `provider.go`, `provider_options.go` |
+| slog's JSON handler encodes a nested struct with `encoding/json`, ignoring `String` and `LogValue` on its fields; `MarshalText` is honoured | 2026-10-28 | Go 1.27.3; proven by `TestSecretNeverPrints` (failed before `Secret.MarshalText`) |
+| grafana/otel-lgtm 0.38.1 enables anonymous **Admin** by default (`GF_AUTH_ANONYMOUS_ENABLED=true`, role Admin); `GF_SERVER_ENFORCE_DOMAIN=true` with domain `localhost` makes Grafana 301 any other Host | 2026-10-28 | `/otel-lgtm/run-grafana.sh` in the image; `curl -H 'Host: evil.example.com' 127.0.0.1:3000/api/org` returned 301 |
+| sqlc 1.31.1 reads goose files from the migrations directory as its schema | 2026-10-28 | `sqlc generate` on `backend/sqlc.yaml` |
 | The Playwright MCP launches the `chrome` channel, which isn't installed on the dev box (`npx playwright install chrome` would fix it) | 2026-10-27 | MCP error on `browser_navigate` |
 
 ## UNVERIFIED (check before relying on them)
@@ -126,6 +141,8 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | Grafana Cloud free tier: ~10k active metric series, 50 GB logs/traces, 14-day retention (secondary sources only) | https://grafana.com/pricing, at P0-07 / P2-17 |
 | India commercial SMS requires TRAI DLT sender/template registration (affects SCP-01 phone OTP) | TRAI / SMS-provider documentation, before any phone-OTP work |
 | Chrome installs the PWA from `manifest.webmanifest` (installability needs HTTPS or localhost, so the LAN phone test can't check it) | Lighthouse or Chrome DevTools, Application, Manifest, on a deployed HTTPS build (P2-17) |
+| Render's internal Postgres URL supports `sslmode=verify-full` (prod config requires verify-full or verify-ca) and allows direct, non-pooled connections for `earlii migrate` | Render docs, at D-04 / P2-17 |
+| Dependabot's `docker-compose` ecosystem updates image tags in `compose.yaml` | GitHub Dependabot docs, before adding it to `dependabot.yml` |
 | Dependabot supports pnpm 12 lockfiles | Watch the first monthly Dependabot run; see the Insights → Dependency graph → Dependabot tab |
 | Greenhouse Job Board API and Lever Postings API: public access and terms allow polling | The official API docs and terms, recorded in LEGAL.md at P1-04 / P1-05 |
 | Keka, Darwinbox, Zoho Recruit public careers feeds and terms (SPEC section 8) | Provider docs and terms (D-08) |

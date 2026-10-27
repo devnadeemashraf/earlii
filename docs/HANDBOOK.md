@@ -31,7 +31,8 @@ One person maintains everything, with AI help. Optimise for code that is easy to
 ```text
 earlii/
 ├── AGENTS.md                 Agent instructions (single source); CLAUDE.md imports it
-├── Taskfile.yml              Task runner: setup, doctor, check, fmt, lint, test, build:web, dev:api, dev:web(:lan), handoff
+├── Taskfile.yml              Task runner: setup, doctor, check, fmt, gen, lint, test, build:web, dev, dev:db, migrate, handoff
+├── compose.yaml              Local stack: Postgres 18 and grafana/otel-lgtm, loopback-only ports (P0-04)
 ├── go.work                   Go workspace: lists every Go module (today only backend/)
 ├── mise.toml                 Tool version pins (local + CI)
 ├── lefthook.yml              Git hooks: format, secrets, commit-msg, pre-push
@@ -42,10 +43,11 @@ earlii/
 ├── pnpm-workspace.yaml       Workspace globs: apps/*, packages/*
 ├── scripts/                  Repo automation, zero dependencies, tested with node:test
 │   ├── lib/                  Pure logic: conventional commits, guards, handoff, pins, shell parsing,
-│   │                         bundle budget, app icon + PNG encoder
+│   │                         bundle budget, app icon + PNG encoder, migration rules
 │   ├── claude/               Claude Code hook entry points (session-start, guard-bash, guard-edit, post-edit-format)
 │   ├── test/                 Tests for all of the above, plus config-parsing tests
 │   │   └── fixtures/ts-alias/ Reference TS project proving @/* in tsc, Vitest, Vite dev and build
+│   ├── check-migrations.mjs  lint:migrations: forward-only rules against main (ADR-0005)
 │   ├── check-text.mjs        Banned-character scan (the section sign) for files and staged changes
 │   ├── check-web-build.mjs   build:web: production build, stale route tree check, initial-JS budget
 │   ├── render-icons.mjs      Regenerates the web app's PNG icons (a test fails if they're stale)
@@ -59,11 +61,17 @@ earlii/
 ├── docs/                     Spec, roadmap, pointer, handbook, standards, versions, setup, ADRs
 │   └── learning/             Private study guides and labs, one folder per PR (gitignored, never committed)
 ├── backend/                  Go module github.com/devnadeemashraf/earlii/backend
-│   ├── cmd/earlii/           The one binary: mode dispatch, logger, signals (main.go)
+│   ├── sqlc.yaml             sqlc: schema = migrations, queries = internal/postgres/queries, out = gen/db
+│   ├── cmd/earlii/           The one binary: mode dispatch, logger, signals, migrate (main.go)
+│   ├── gen/db/               sqlc output (package db); generated, never edited (task gen)
 │   └── internal/
-│       ├── config/           Env-only config: parse, validate, fail fast with every error
+│       ├── config/           Env-only config: parse, validate, fail fast with every error; Secret
 │       ├── health/           /healthz (liveness) and /readyz (concurrent named checks)
-│       └── httpserver/       Hardened http.Server (New) and graceful Serve (errgroup + Shutdown)
+│       ├── httpserver/       Hardened http.Server (New) and graceful Serve (errgroup + Shutdown)
+│       └── postgres/         Pool (NewPool), Migrate (River then goose under one advisory lock)
+│           ├── migrations/   Forward-only goose SQL files, embedded in the binary
+│           ├── queries/      sqlc query files
+│           └── pgtest/       Integration-test helper: throwaway databases on a loopback server
 ├── apps/web/                 The React PWA (P0-03): Vite, TanStack Router + Query, Tailwind, shadcn/ui
 │   ├── index.html            Inline first-paint skeleton + critical CSS, manifest and theme-color links
 │   ├── vite.config.ts        Plugins, the @/ alias, dev-server lock-down (fs, proxy), Vitest settings
@@ -106,14 +114,15 @@ flowchart LR
 
 ### Boot and shutdown (P0-02)
 
-`earlii <mode>` (`api`, `worker` or `scheduler`) runs `run()` in `backend/cmd/earlii/main.go`:
+`earlii <mode>` (`api`, `worker`, `scheduler` or `migrate`) runs `run()` in `backend/cmd/earlii/main.go`:
 
 1. **Args.** Anything other than exactly one known mode prints the usage line to stderr and exits **2**.
 2. **Logger.** A JSON `slog` logger on stdout, with UTC timestamps and a `mode` attribute. It is built *before* config so config errors are JSON too; its level (`slog.LevelVar`) is set after config loads.
 3. **Config.** `config.Load(os.Environ())` validates everything and reports every problem at once, naming variables but never echoing values. Invalid config logs one ERROR line and exits **1**.
 4. **Signals.** `signal.NotifyContext` turns SIGINT/SIGTERM into a cancelled context. After the first signal the default handlers come back, so a second Ctrl-C kills the process at once.
-5. **Serve.** Every mode listens on `EARLII_HTTP_ADDR` and serves `GET /healthz` (always 200 while the process runs) and `GET /readyz` (200 only if every check passes within 2 s; 503 with per-check `ok`/`fail`, details only in the logs). There are no checks yet: Postgres and River add theirs in P0-04. Worker and scheduler only serve probes until River arrives (P0-04).
-6. **Drain.** `httpserver.Serve` runs two goroutines in an `errgroup`: one runs `srv.Serve`, the other waits for the signal (or a serving error) and calls `srv.Shutdown` with a fresh `EARLII_SHUTDOWN_TIMEOUT` budget. `Shutdown` stops accepting, closes idle keep-alive connections at once and waits for in-flight requests; if the budget runs out, `srv.Close` cuts off the rest and `Serve` returns an error wrapping `context.DeadlineExceeded`. Exit **0** on a clean stop, **1** on any serving error or forced close. `Shutdown` closes the listener first, so `/readyz` can't report "draining" to new probes. If a load balancer ever needs to deregister an instance before the drain, that takes a pre-stop delay (consider it in P0-06).
+5. **Migrate (one-shot).** `earlii migrate` applies the schema and exits 0, or 1 on failure; it never listens (see Schema and migrations below).
+6. **Serve.** The other modes create a Postgres pool that connects lazily, so they boot while the database is down. They listen on `EARLII_HTTP_ADDR` and serve `GET /healthz` (always 200 while the process runs) and `GET /readyz` (200 only if every check passes within 2 s; 503 with per-check `ok`/`fail`, details only in the logs). The one check is `postgres` (`pool.Ping`). Worker and scheduler only serve probes until River's client starts (P0-07).
+7. **Drain.** `httpserver.Serve` runs two goroutines in an `errgroup`: one runs `srv.Serve`, the other waits for the signal (or a serving error) and calls `srv.Shutdown` with a fresh `EARLII_SHUTDOWN_TIMEOUT` budget. `Shutdown` stops accepting, closes idle keep-alive connections at once and waits for in-flight requests; if the budget runs out, `srv.Close` cuts off the rest and `Serve` returns an error wrapping `context.DeadlineExceeded`. Exit **0** on a clean stop, **1** on any serving error or forced close. `Shutdown` closes the listener first, so `/readyz` can't report "draining" to new probes. If a load balancer ever needs to deregister an instance before the drain, that takes a pre-stop delay (consider it in P0-06).
 
 Every connection has limits (`internal/httpserver/server.go`): 5 s to read headers, 15 s to read the request, 15 s to write the response, 60 s idle, 64 KiB of headers. The global write timeout will cut off Connect server-streaming RPCs: streaming handlers must set their own deadline with `http.ResponseController` (P0-05).
 
@@ -124,6 +133,8 @@ Every connection has limits (`internal/httpserver/server.go`): 5 s to read heade
 | `EARLII_ENV` | **required** | `dev` or `prod`. Required, so prod never runs on dev defaults |
 | `EARLII_HTTP_ADDR` | `:8080` | `host:port`; host empty, `localhost` or an IP; port 0 (random) is rejected in prod. The default binds every interface, as containers need; `task dev:api` overrides it (section 11) |
 | `PORT` | none | Used as `:$PORT` only when `EARLII_HTTP_ADDR` is unset (Render sets it, default 10000) |
+| `EARLII_DATABASE_URL` | **required** | A pgx URL (`postgres://...` or keyword/value). Only host, port, user, password, dbname, sslmode, sslrootcert, connect_timeout, application_name and `pool_*` keys are allowed (no service files, passfiles or `options`). In prod the parsed result must authenticate the server on every host: `verify-full`, or `verify-ca` with `sslrootcert`. `require`, `prefer`, `ssl=true` and a `PGSSLMODE` downgrade are rejected. Any `PG*` variable pgx reads (`PGHOST`, `PGOPTIONS`, …) fails the boot. Held as `config.Secret`, which never prints. `connect_timeout` defaults to 5 s (0 counts as unset); the pool size defaults to pgx's, tune it with `pool_max_conns` |
+| `EARLII_TEST_DATABASE_URL` | none | Integration tests only (loopback admin URL). The app tolerates it but never uses it |
 | `EARLII_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `EARLII_SHUTDOWN_TIMEOUT` | `8s` | Go duration, above 0 and at most 9 s, so the drain finishes before Docker's SIGKILL at 10 s |
 
@@ -136,6 +147,20 @@ An empty value counts as unset. A variable set twice fails the boot. Unknown `EA
 3. **The `/` route.** The loader runs `queryClient.ensureQueryData(apiStatusQuery(api))`, and the component reads the same entry with `useSuspenseQuery`. On later navigations the route's `pendingComponent` (the React skeleton) shows after 100 ms and stays at least 300 ms (`defaultPendingMs`/`defaultPendingMinMs`, a first guess to tune on a phone). Routes preload on intent.
 4. **The adapter** (`src/lib/api-status.ts`) GETs `/readyz` with a 5 s timeout combined with Query's abort signal (`anySignal`, which falls back where `AbortSignal.any` is missing: Safari before 17.4, Chrome before 116) and `redirect: "error"`. Any status other than 200 or 503 fails without reading the body: a gateway 502 or 504 (the dev proxy when the API is down) as `network`, anything else as `http`. It reads at most 4 KB (a stalled body is cut off at the timeout), requires `application/json`, accepts only `[A-Za-z0-9_.-]` check names, and narrows the body to `ok` (200) or `degraded` (503 with a valid body, shown as content, not an error). Anything else becomes an `ApiStatusError` with a failure kind, and the UI shows fixed copy for each kind (`src/lib/copy.ts`), never server text. P0-05 swaps the fetch for the Connect Health client.
 5. **Dev server.** `task dev:web` serves on localhost:5173, `task dev:web:lan` on the LAN for phone testing. Only `^/readyz$` is proxied, to `http://127.0.0.1:8080`. `server.fs.allow` is limited to the app and `node_modules`, and `fs.deny` adds the private docs to Vite's defaults; otherwise anyone on the Wi-Fi could read `docs/SPEC.md` through `/@fs/`. `allowedHosts` stays at its default (never `true`).
+
+### Schema and migrations (P0-04, [ADR-0005](adr/0005-migrations.md))
+
+- **Local stack.** `task dev:db` starts `compose.yaml`: Postgres 18.6 on `127.0.0.1:5432` (user, password and database `earlii` / `earlii-dev-only` / `earlii`), and Grafana with OTLP on `localhost:3000`, `:4317` and `:4318`. Grafana has anonymous Admin, enforces the `localhost` Host header against DNS rebinding, and sits on its own network so it can't reach Postgres. `task dev` adds `task migrate`, `dev:api` and `dev:web`.
+- **`postgres.Migrate`** takes a session advisory lock (`MigrateLockID`) on a dedicated connection, with `idle_session_timeout` off. The wait is capped at 2 minutes and respects Ctrl-C and SIGTERM; pgx sends a cancel request when it closes a cancelled connection, so the statement also stops server-side. Then it:
+  - refuses Postgres older than 18;
+  - applies River's migrations (`rivermigrate.Migrate`, 8 at v0.50.0), then ours (goose `Provider.Up` over the embedded `migrations/` files), on a two-connection pool with `lock_timeout = 5s`, so DDL never queues for long behind a long transaction;
+  - checks that the lock connection is alive before our DDL;
+  - unlocks.
+
+  Concurrent migrators apply each version once; the rest wait, then find nothing to do. It logs `migrated` with the versions applied (empty lists on a no-op).
+- **Rules** (`task lint:migrations`): files are `NNNNN_snake_case.sql` with only `-- +goose Up`. A merged file is never edited, renamed or deleted, and a new version must be above main's highest. Breaking changes go expand, migrate, contract across releases.
+- **sqlc** reads the migrations as its schema and `internal/postgres/queries/*.sql` as queries, and generates `backend/gen/db` (pgx/v5). `task lint:sql` fails if `gen/db` is stale. The first query, `ServerVersionNum`, is how migrate checks the server.
+- **Direct connection.** The migrate URL must reach Postgres directly: a transaction-mode pooler would split the lock and the DDL across backends.
 
 ### Other flows
 
@@ -150,7 +175,7 @@ An empty value counts as unset. A variable set twice fails the boot. Unknown `EA
 ## 7. Testing strategy
 
 - **Repo scripts:** `node:test` in `scripts/test/`. Pure logic lives in `scripts/lib/`, so the rules are unit-tested without git. The CLIs are also tested end to end through `spawnSync`.
-- **Go:** table-driven unit tests next to the code, external test packages (`package x_test`) so tests use only the public API. `task test:go` adds `-race` when cgo is on (Linux CI); the Windows dev box has no gcc, so it runs without. Server tests bind `127.0.0.1:0` and synchronise with channels, never sleeps. Coming next: integration tests against Postgres (P0-04, D-10), and connector fixtures with no live network in CI.
+- **Go:** table-driven unit tests next to the code, external test packages (`package x_test`) so tests use only the public API. `task test:go` adds `-race` when cgo is on (Linux CI); the Windows dev box has no gcc, so it runs without. Server tests bind `127.0.0.1:0` and synchronise with channels, never sleeps. **Integration tests** (P0-04, D-10) are `*_integration_test.go` files with `//go:build integration`. `task test:integration` runs them against `EARLII_TEST_DATABASE_URL`, or the running compose Postgres, and prints `skip:` when neither is available. In CI they run in the `integration` job against a `postgres:18.6-alpine` service container. `pgtest.NewDatabase(t)` gives each test a fresh database (`earlii_test_<16 hex>`), force-dropped at cleanup. The admin URL must be loopback, and an unset URL fails rather than skips. golangci-lint lints them (`build-tags: [integration]`). Coming next: connector fixtures with no live network in CI.
 - **Web:** Vitest + Testing Library, jsdom by default; files that need Node (the `/readyz` adapter, the PWA contract, the dev server) start with `// @vitest-environment node`. Route tests render the real route tree with `createMemoryHistory`, a fake `api` in the router context and a QueryClient with `retry: false` (`createQueryClient`). The dev-server test boots the real Vite config and attacks it (`/@fs/`, traversal, a foreign Host). Playwright e2e for the key flows comes in P2-04 and P2-05.
 - **Required paths for every change:** happy, sad, edge and abuser. See CODING_STANDARDS section Tests.
 
@@ -166,6 +191,13 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
 - **Secrets** live only in environment variables or a secret manager, never in the repo. gitleaks runs in pre-commit and CI.
 - **Supply chain:** GitHub Actions are pinned by commit SHA and audited by zizmor; Dependabot opens monthly update PRs.
 - **Web dev server** (P0-03): the LAN-exposed Vite server is locked to the app's files and `node_modules`, denies the private docs, rejects foreign Host headers, and proxies only `/readyz` (section 5, tested in `apps/web/src/dev-server.test.ts`). Server text never reaches the page: the UI maps failures to fixed copy, and React escapes everything it renders.
+- **Database** (P0-04):
+  - `EARLII_DATABASE_URL` is validated against a key allowlist; prod demands certificate-verifying TLS.
+  - Parse errors are never wrapped, because pgx quotes the URL.
+  - `config.Secret` redacts it in every fmt verb, in slog, and in JSON.
+  - `/readyz` shows only `postgres: ok|fail`.
+  - The compose stack is loopback-only, which a test enforces.
+  - The dev password is public and dev-only.
 - Application auth, sessions, SSRF defences, HTML sanitisation, CSP and DPDP controls (planned, P1-11, P2-09, P2-10, P2-17, E-08).
 
 ## 10. Operations
@@ -174,7 +206,12 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
 
 ## 11. How-to recipes
 
-- **Run the API locally:** `task dev:api`, then `curl 127.0.0.1:8080/readyz`. It binds `127.0.0.1:8080` only, so nobody on the Wi-Fi can reach it; a test keeps that equal to the web dev proxy target. Ctrl-C drains and stops it; a second Ctrl-C kills it.
+- **Run everything locally:** `task dev` (Docker Desktop running). Grafana is at http://localhost:3000. `task dev:down` stops the stack.
+- **Add a migration:** create `backend/internal/postgres/migrations/NNNNN_<what>.sql` with the next number. It starts with `-- +goose Up`, holds one concern, and never gets a Down section. Run `task migrate`, then `task gen` if queries change, then `task check`. To change a shape that is already merged, add new migrations (expand, migrate, contract); never edit the old file.
+- **Add a query:** write it in `backend/internal/postgres/queries/<area>.sql` with a `-- name: Foo :one|:many|:exec` header, run `task gen`, and use `db.New(pool).Foo(ctx, ...)`. Cover it with an integration test.
+- **Run the DB integration tests:** `task dev:db`, then `task test:integration`. `task check` runs them too while the stack is up.
+- **Dev tasks set variables inline** (`KEY=value go run ...`), never in an `env:` block: Task lets the shell's environment win over `env:`, so a leftover prod `EARLII_DATABASE_URL` would be used. A test enforces this for `dev:api` and `migrate`.
+- **Run the API locally:** `task dev:db` and `task migrate` first, then `task dev:api` and `curl 127.0.0.1:8080/readyz` (503 with `postgres: fail` if the stack is down). It binds `127.0.0.1:8080` only, so nobody on the Wi-Fi can reach it; a test keeps that equal to the web dev proxy target. Ctrl-C drains and stops it; a second Ctrl-C kills it.
 - **Run the web app:** `task dev:api` in one terminal and `task dev:web` in another, then open http://localhost:5173. On a phone, use `task dev:web:lan` and the printed Network URL (same Wi-Fi).
 - **Add a route:** create `apps/web/src/routes/<path>.tsx` exporting `Route = createFileRoute("/<path>")({...})`. The router plugin regenerates `routeTree.gen.ts` whenever Vite or Vitest runs; commit it (`task build:web` fails if it's stale). Give the route a `pendingComponent` skeleton and an `errorComponent` with fixed copy. Keep files that aren't routes (tests too) out of `routes/`.
 - **Add a shadcn component:** `cd apps/web && pnpm dlx shadcn@4.23.0 add <name>`. Review the copied code, point its `cn` import at `@/lib/utils` if the CLI changed it, pin any dependency it added exactly, and record new ones in VERSIONS.
@@ -192,3 +229,5 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
 | [0001](adr/0001-toolchain-and-repo-automation.md) | Toolchain and repo automation (Task, mise, lefthook, Biome, golangci-lint, Node scripts) | Accepted |
 | [0002](adr/0002-connect-rpc-protobuf-contracts.md) | Connect RPC + Protobuf contracts | Accepted |
 | [0003](adr/0003-modular-monolith-one-image.md) | Modular monolith, one image, many modes | Accepted |
+| [0004](adr/0004-typescript-path-aliases.md) | TypeScript path aliases | Accepted |
+| [0005](adr/0005-migrations.md) | Migrations: goose in the binary, River first, an explicit migrate mode (D-07, D-10) | Accepted |

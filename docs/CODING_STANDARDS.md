@@ -66,7 +66,7 @@ These standards are enforced by tooling wherever possible (`task check`). Where 
 ## Tests
 
 - **Layout:**
-  - Go: `_test.go` next to the code, with integration tests behind the `integration` build tag (P0-04);
+  - Go: `_test.go` next to the code, with integration tests in `*_integration_test.go` behind the `integration` build tag, using `pgtest.NewDatabase` (P0-04, ADR-0005);
   - web: `*.test.tsx` next to the component, plus e2e in `apps/web/e2e/`;
   - scripts: `scripts/test/`.
 - **Every change covers four paths:**

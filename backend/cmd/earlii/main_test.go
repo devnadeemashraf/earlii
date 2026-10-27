@@ -15,15 +15,24 @@ import (
 	"time"
 )
 
+const (
+	// sentinel is the password in every test database URL; no output may
+	// contain it.
+	sentinel = "Zq9SENTINEL"
+	// Port 1 on loopback refuses at once: these tests need no database.
+	unreachableDB     = "EARLII_DATABASE_URL=postgres://earlii:" + sentinel + "@127.0.0.1:1/earlii?sslmode=disable&connect_timeout=2"
+	unreachableProdDB = "EARLII_DATABASE_URL=postgres://earlii:" + sentinel + "@127.0.0.1:1/earlii?sslmode=verify-full&connect_timeout=2"
+)
+
 func TestRunRejectsBadArgs(t *testing.T) {
-	for _, args := range [][]string{nil, {"ap"}, {"API"}, {"api", "--x"}, {""}} {
+	for _, args := range [][]string{nil, {"ap"}, {"API"}, {"api", "--x"}, {""}, {"migrate", "down"}} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := run(t.Context(), args, []string{"EARLII_ENV=dev"}, &stdout, &stderr)
+			code := run(t.Context(), args, []string{"EARLII_ENV=dev", unreachableDB}, &stdout, &stderr)
 			if code != 2 {
 				t.Fatalf("exit code = %d, want 2", code)
 			}
-			if !strings.Contains(stderr.String(), "usage: earlii api|worker|scheduler") {
+			if !strings.Contains(stderr.String(), "usage: earlii api|worker|scheduler|migrate") {
 				t.Fatalf("stderr = %q, want the usage line", stderr.String())
 			}
 		})
@@ -66,7 +75,7 @@ func TestRunFailsWhenAddressInUse(t *testing.T) {
 	taken := listen(t)
 
 	var stdout, stderr bytes.Buffer
-	env := []string{"EARLII_ENV=dev", "EARLII_HTTP_ADDR=" + taken.Addr().String()}
+	env := []string{"EARLII_ENV=dev", unreachableDB, "EARLII_HTTP_ADDR=" + taken.Addr().String()}
 	if code := run(t.Context(), []string{"api"}, env, &stdout, &stderr); code != 1 {
 		t.Fatalf("exit code = %d, want 1; logs: %s", code, stdout.String())
 	}
@@ -75,15 +84,18 @@ func TestRunFailsWhenAddressInUse(t *testing.T) {
 func TestRunServesProbesInEveryMode(t *testing.T) {
 	for _, mode := range []string{"api", "worker", "scheduler"} {
 		t.Run(mode, func(t *testing.T) {
-			p := startRun(t, mode, "EARLII_ENV=dev", "EARLII_HTTP_ADDR=127.0.0.1:0")
+			p := startRun(t, mode, "EARLII_ENV=dev", unreachableDB, "EARLII_HTTP_ADDR=127.0.0.1:0")
 			base := "http://" + p.addr
 
 			for _, tc := range []struct {
 				method, path string
 				want         int
 			}{
+				// Booting doesn't need the database; liveness never checks it.
 				{http.MethodGet, "/healthz", http.StatusOK},
-				{http.MethodGet, "/readyz", http.StatusOK},
+				// The database is down: not ready, but still running. The
+				// ready path is in main_integration_test.go.
+				{http.MethodGet, "/readyz", http.StatusServiceUnavailable},
 				{http.MethodHead, "/healthz", http.StatusOK},
 				{http.MethodPost, "/healthz", http.StatusMethodNotAllowed},
 				{http.MethodGet, "/HEALTHZ", http.StatusNotFound},
@@ -99,14 +111,53 @@ func TestRunServesProbesInEveryMode(t *testing.T) {
 				t.Fatalf("exit code = %d, want 0", code)
 			}
 			p.expectLog(t, "stopped")
+			p.expectNoSecret(t)
 		})
+	}
+}
+
+// The readiness body names the failing check and nothing else: no host, no
+// user, no error text. Details go to the logs, which must not hold the
+// password either.
+func TestRunReadinessHidesDatabaseDetails(t *testing.T) {
+	env := []string{"EARLII_ENV=dev", unreachableDB, "EARLII_HTTP_ADDR=127.0.0.1:0"}
+	p := startRun(t, "api", env...)
+	code, body := get(t, "http://"+p.addr+"/readyz")
+	if code != http.StatusServiceUnavailable {
+		t.Fatalf("/readyz = %d, want 503", code)
+	}
+	if want := `{"status":"unavailable","checks":{"postgres":"fail"}}`; strings.TrimSpace(body) != want {
+		t.Fatalf("/readyz body = %s, want %s", body, want)
+	}
+	line := p.expectLog(t, "readiness check failed")
+	if line["check"] != "postgres" {
+		t.Fatalf("log line = %v, want the postgres check", line)
+	}
+	p.cancel()
+	p.wait(t)
+	p.expectNoSecret(t)
+}
+
+// migrate is a one-shot: it never serves probes (Compose waits for it to
+// exit), and an unreachable database fails it, without leaking the password.
+func TestRunMigrateFailsWhenTheDatabaseIsUnreachable(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := run(t.Context(), []string{"migrate"}, []string{"EARLII_ENV=dev", unreachableDB}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1; logs: %s", code, stdout.String())
+	}
+	if strings.Contains(stdout.String(), `"listening"`) {
+		t.Fatalf("migrate opened a listener: %s", stdout.String())
+	}
+	if strings.Contains(stdout.String()+stderr.String(), sentinel) {
+		t.Fatalf("output leaks the password: %s %s", stdout.String(), stderr.String())
 	}
 }
 
 // A rollback must not crash-loop on a variable added for a newer release.
 func TestRunWarnsOnUnknownKeysInProd(t *testing.T) {
 	// Prod rejects port 0, so this test needs a concrete port.
-	env := []string{"EARLII_ENV=prod", "EARLII_ADDED_LATER=1", "EARLII_HTTP_ADDR=127.0.0.1:" + freePort(t)}
+	env := []string{"EARLII_ENV=prod", unreachableProdDB, "EARLII_ADDED_LATER=1", "EARLII_HTTP_ADDR=127.0.0.1:" + freePort(t)}
 	p := startRun(t, "api", env...)
 	p.cancel()
 	if code := p.wait(t); code != 0 {
@@ -217,6 +268,40 @@ func (p *process) wait(t *testing.T) int {
 		t.Fatal("run did not return after cancel")
 		return -1
 	}
+}
+
+// expectNoSecret reads the rest of the logs (run must have returned) and
+// fails if any line, read now or earlier, contains the database password.
+func (p *process) expectNoSecret(t *testing.T) {
+	t.Helper()
+	for line := range p.lines {
+		p.seen = append(p.seen, line)
+	}
+	for _, line := range p.seen {
+		b, _ := json.Marshal(line)
+		if strings.Contains(string(b), sentinel) {
+			t.Fatalf("log line leaks the database password: %s", b)
+		}
+	}
+}
+
+func get(t *testing.T, url string) (int, string) {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	return resp.StatusCode, string(body)
 }
 
 func status(t *testing.T, method, url string) int {

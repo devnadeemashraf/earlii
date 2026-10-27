@@ -9,7 +9,7 @@ These steps take a fresh Windows 11 machine to a green `task check`. Other OSes 
 | Git for Windows (includes Git Bash) | `winget install --id Git.Git -e` | git, plus the shell Claude Code hooks run in |
 | mise | `winget install jdx.mise` | installs every other pinned tool (`mise.toml`) |
 | GitHub CLI | `winget install --id GitHub.cli -e`, then `gh auth login` | PRs, repo settings |
-| Docker Desktop | `winget install --id Docker.DockerDesktop -e` | local Postgres and observability from P0-04 (optional until then) |
+| Docker Desktop | `winget install --id Docker.DockerDesktop -e` | the local stack (`compose.yaml`: Postgres, Grafana). `task check` passes without it, but then skips the DB integration tests |
 | Claude Code | see https://code.claude.com/docs | the AI harness in `.claude/` |
 
 > Check winget IDs with `winget search <name>` if an install fails. IDs occasionally change.
@@ -35,6 +35,16 @@ task check        # must be green
 ```
 
 The first `mise install` builds gopls from source and takes about 2 minutes. If `task` isn't found yet, run `mise exec -- task setup` once.
+
+Then start the local stack (Docker Desktop must be running):
+
+```powershell
+task dev          # Postgres + Grafana, migrate, then the API and the web app
+task check        # now also runs the DB integration tests against the compose Postgres
+task dev:down     # stop the stack; data stays in Docker volumes (task dev:down -- -v wipes it)
+```
+
+Ports 5432, 3000, 4317 and 4318 must be free on 127.0.0.1. A native Postgres install on 5432 clashes: stop it first.
 
 ## 4. Git identity and hooks
 
