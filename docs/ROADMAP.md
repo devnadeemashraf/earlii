@@ -59,7 +59,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-02-1 *implement*: graceful shutdown with `signal.NotifyContext`, `http.Server.Shutdown` and `errgroup`. This covers context cancellation, the core of all Go concurrency.
 
 ### P0-03 · Web skeleton
-- **Spec:** 3, O [MVP] · **Size:** M · **Status:** in review (#3)
+- **Spec:** 3, O [MVP] · **Size:** M · **Status:** done (#3)
 - **Acceptance:**
   - `apps/web`: Vite + React + TS, TanStack Router (file routes) and Query, Tailwind, shadcn/ui initialised;
   - the path alias follows the fixture exactly: `tsconfig.json` extends `tsconfig.base.json` with `"paths": { "@/*": ["./src/*"] }`, and `vite.config.ts` sets `resolve.tsconfigPaths: true` (ADR-0004). shadcn's `components.json` aliases use `@/`;
@@ -413,6 +413,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-27 | P0-03 merged (#3). BP-001 in review (#4): `task dev:api` binds `127.0.0.1:8080` only. |
 | 2026-10-27 | P0-02 merged (#2). P0-03 in review (#3): web skeleton, PWA manifest, the bundle budget gate. |
 | 2026-10-27 | **Mode: build** (owner decision). The AI builds every item; each PR gets a private study guide with labs in `docs/learning/` (gitignored). The P0-02 drain is implemented in #2, and the old LEARN exercises were folded into the P0-01 and P0-02 guides. |
 | 2026-10-27 | P0-01 merged (#1). P0-02 in review (#2): Go skeleton, config, probes, modes; the graceful drain is exercise P0-02-1 (stub + skipped tests). |

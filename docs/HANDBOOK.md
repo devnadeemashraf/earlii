@@ -122,7 +122,7 @@ Every connection has limits (`internal/httpserver/server.go`): 5 s to read heade
 | Variable | Default | Rules |
 | :-- | :-- | :-- |
 | `EARLII_ENV` | **required** | `dev` or `prod`. Required, so prod never runs on dev defaults |
-| `EARLII_HTTP_ADDR` | `:8080` | `host:port`; host empty, `localhost` or an IP; port 0 (random) is rejected in prod |
+| `EARLII_HTTP_ADDR` | `:8080` | `host:port`; host empty, `localhost` or an IP; port 0 (random) is rejected in prod. The default binds every interface, as containers need; `task dev:api` overrides it (section 11) |
 | `PORT` | none | Used as `:$PORT` only when `EARLII_HTTP_ADDR` is unset (Render sets it, default 10000) |
 | `EARLII_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `EARLII_SHUTDOWN_TIMEOUT` | `8s` | Go duration, above 0 and at most 9 s, so the drain finishes before Docker's SIGKILL at 10 s |
@@ -174,7 +174,7 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
 
 ## 11. How-to recipes
 
-- **Run the API locally:** `task dev:api`, then `curl localhost:8080/readyz`. Ctrl-C drains and stops it; a second Ctrl-C kills it.
+- **Run the API locally:** `task dev:api`, then `curl 127.0.0.1:8080/readyz`. It binds `127.0.0.1:8080` only, so nobody on the Wi-Fi can reach it; a test keeps that equal to the web dev proxy target. Ctrl-C drains and stops it; a second Ctrl-C kills it.
 - **Run the web app:** `task dev:api` in one terminal and `task dev:web` in another, then open http://localhost:5173. On a phone, use `task dev:web:lan` and the printed Network URL (same Wi-Fi).
 - **Add a route:** create `apps/web/src/routes/<path>.tsx` exporting `Route = createFileRoute("/<path>")({...})`. The router plugin regenerates `routeTree.gen.ts` whenever Vite or Vitest runs; commit it (`task build:web` fails if it's stale). Give the route a `pendingComponent` skeleton and an `errorComponent` with fixed copy. Keep files that aren't routes (tests too) out of `routes/`.
 - **Add a shadcn component:** `cd apps/web && pnpm dlx shadcn@4.23.0 add <name>`. Review the copied code, point its `cn` import at `@/lib/utils` if the CLI changed it, pin any dependency it added exactly, and record new ones in VERSIONS.
