@@ -17,7 +17,7 @@
 
 ## FIX-FIRST QUEUE
 
-- **BP-002** (in review, this PR): `lint:migrations` reported every migration on main as "changed after merge", so `task check` has failed on main and on every branch since #5. Evidence: CI run for 48525ab (both check legs); `scripts/check-migrations.mjs:30` read main's files through `git()`, which trims stdout and drops the final newline. Fix: `showFile` returns exact bytes; covered end to end by `scripts/test/check-migrations.test.mjs`.
+- **BP-002** (in review, #6): `lint:migrations` reported every migration on main as "changed after merge", so `task check` has failed on main and on every branch since #5. Evidence: CI run for 48525ab (both check legs); `scripts/check-migrations.mjs:30` read main's files through `git()`, which trims stdout and drops the final newline. Fix: `showFile` returns exact bytes; covered end to end by `scripts/test/check-migrations.test.mjs`.
 
 ## NEXT UP
 
@@ -67,7 +67,7 @@
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
-| BP-002 | BP-002 | `lint:migrations` reads main's migrations byte-exact (`showFile`), fixing a false "changed after merge" that turned main red; end-to-end CLI test | no |
+| #6 | BP-002 | `lint:migrations` reads main's migrations byte-exact (`showFile`), fixing a false "changed after merge" that turned main red; end-to-end CLI test | no |
 | #5 | P0-04 | Compose stack (Postgres 18, otel-lgtm; loopback only), `earlii migrate` (River then goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, strict DB URL config, forward-only lint, DB integration tests in CI (ADR-0005) | yes: `task dev`, curl `127.0.0.1:8080/readyz` (200), `task dev:down`, curl again (503) |
 | #4 | BP-001 | `task dev:api` binds `127.0.0.1:8080` only; a test keeps it equal to the web dev proxy target | yes: `task dev:api`, curl `127.0.0.1:8080/readyz` (200) and `<LAN IP>:8080/readyz` (refused) |
 | #3 | P0-03 | Web skeleton: Vite/React/TanStack/Tailwind/shadcn, skeleton then content, PWA manifest, locked-down dev server, bundle gate | yes: `task dev:api` + `task dev:web:lan`, open on a phone |
