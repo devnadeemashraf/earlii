@@ -4,7 +4,7 @@ description: Run the full Earlii PR loop for the next roadmap item (or a given I
 argument-hint: "[roadmap ID, e.g. P0-02]"
 ---
 
-Run THE PR LOOP from AGENTS.md §4 for `$ARGUMENTS` (if empty: the first FIX-FIRST QUEUE entry in docs/POINTER.md, else NEXT UP).
+Run THE PR LOOP from AGENTS.md section 4 for `$ARGUMENTS` (if empty: the first FIX-FIRST QUEUE entry in docs/POINTER.md, else NEXT UP).
 
 1. **Orient**
    - Read docs/POINTER.md, then the ROADMAP entry and every SPEC section it cites, then the HANDBOOK repo map and relevant sections.
@@ -15,7 +15,7 @@ Run THE PR LOOP from AGENTS.md §4 for `$ARGUMENTS` (if empty: the first FIX-FIR
 4. **Design**
    - For M items, or anything touching the data model, security, concurrency or hot paths: run the `architect` subagent for 2–3 options and the `red-team` subagent against the leading option.
    - Pick one, and write an ADR (docs/adr/) if the choice will last.
-5. **LEARN mode:** pick 1–2 exercises from this item's real work (AGENTS.md §5, and the ROADMAP Curriculum map). Use `/exercise` to create the stub, failing tests and exercise file. Build everything else yourself.
+5. **LEARN mode:** pick 1–2 exercises from this item's real work (AGENTS.md section 5, and the ROADMAP Curriculum map). Use `/exercise` to create the stub, failing tests and exercise file. Build everything else yourself.
 6. **Tests first:** happy, sad, edge and abuser paths. Run them and confirm they fail for the right reason.
 7. **Implement** the smallest change that passes, following docs/CODING_STANDARDS.md.
 8. **Run `task check`** until it's green. Never weaken a test.

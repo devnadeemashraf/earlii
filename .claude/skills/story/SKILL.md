@@ -12,7 +12,7 @@ Rules:
   - Every number must come from a command committed in the repo (a benchmark, a test, a profile, a `task` target). Name the command and the before/after output.
   - If nothing was measured, write "Not measured, because …" and say how it could be measured. Never estimate silently. Never invent percentages.
 - **Real options.** List 2–3 alternatives that were actually viable, each with its concrete trade-offs. Don't use straw men.
-- **Context-specific "why".** Tie each reason to Earlii's constraints: free tiers, Windows dev box, solo maintainer, the latency budgets in SPEC §4, India market, DPDP.
+- **Context-specific "why".** Tie each reason to Earlii's constraints: free tiers, Windows dev box, solo maintainer, the latency budgets in SPEC section 4, India market, DPDP.
 - **Soundbite:** at most 3 lines, first person, in the shape "I found [X], so I did [Y] because [A, B, C]. I skipped [Z] because [...]. It improved [metric] by [M]%." (or "…which kept [metric] within budget").
 - **Follow-ups:** 2–3 questions an interviewer would likely ask, each with a crisp answer.
 - Link the PR, the ADR (if any) and the files.

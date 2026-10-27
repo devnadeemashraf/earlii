@@ -12,9 +12,11 @@ This is the **single source of agent instructions** for Earlii. Tool-specific fi
 
 **Sources of truth, in order:** SPEC > ROADMAP > POINTER > HANDBOOK. If they disagree, the higher one wins. Raise the conflict in POINTER's "Open questions for the human".
 
+**`docs/SPEC.md` and `docs/project-scaffold-claude.md` are private and local-only.** Both are gitignored and never committed, quoted at length in commits or PRs, or published. If SPEC is missing (a fresh clone or a cloud session), work from ROADMAP and say so.
+
 ## 2. Non-negotiable rules
 
-1. **Never break the Spec guardrails** (SPEC §7): no LinkedIn/Naukri scraping; no auto-sending, auto-applying or messaging; no recruiter-contact database; no claim about a user that their resume doesn't support; no selling user data; no resumes or drafts sent to a free LLM tier.
+1. **Never break the Spec guardrails** (SPEC section 7): no LinkedIn/Naukri scraping; no auto-sending, auto-applying or messaging; no recruiter-contact database; no claim about a user that their resume doesn't support; no selling user data; no resumes or drafts sent to a free LLM tier.
 2. **No AI attribution, anywhere.** No `Co-Authored-By` AI trailers, no "Generated with …" footers, no "written by AI" comments. The owner owns all IP (proprietary `LICENSE`).
 3. **Verify, don't recall** (table below). Never invent an API, flag, version or limit. When unsure, mark it `UNVERIFIED` and say how to check.
 4. **Small PRs.** One roadmap item per PR, about 1–4 sessions. Anything bigger is an epic: split it in a docs-only grooming PR.
@@ -23,6 +25,8 @@ This is the **single source of agent instructions** for Earlii. Tool-specific fi
 7. **Decisions are explicit.** Lasting choices get an ADR in `docs/adr/`. Spec changes are a _Spec change proposal_ (what it replaces, cost, risk) in ROADMAP that the owner approves.
 8. **Public postings only go to the LLM** until a paid, no-training tier is in place, recorded in VERSIONS.
 9. **Privacy and legal flags** (DPDP Act, licences, terms of service, money) go into `docs/LEGAL.md` with a note when a professional is needed. Don't present them as legal advice.
+10. **Never use the section sign (U+00A7) anywhere**: files, code, comments, commits, PR titles or bodies. Write "section 4", "SPEC A2" or "ROADMAP section Budgets". The edit guard, the pre-commit hook, the commit-msg hook and `task lint:text` all reject it.
+11. **TypeScript imports use the `@/` alias** for anything outside the current folder (ADR-0004). Never use `../`; Biome rejects it in `apps/` and `packages/`. Cross-package imports use workspace package names (`@earlii/<name>`).
 
 ## 3. Verify, don't recall
 
@@ -96,6 +100,8 @@ The owner is strong in TypeScript/React and new to Go. The goal is a shipped pro
 - Weaken, skip or delete a test to make it pass.
 - Leave a `TODO` without a roadmap or bug ID: `// TODO(P1-07): …` or `// TODO(BP-003): …`.
 - Add AI attribution of any kind.
+- Use the section sign (U+00A7), anywhere.
+- Commit or publish `docs/SPEC.md` or `docs/project-scaffold-claude.md`.
 - Make network calls to job boards in tests: use recorded fixtures.
 
 ## 8. Checklists for tools without hooks

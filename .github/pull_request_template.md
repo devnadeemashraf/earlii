@@ -2,7 +2,7 @@
 
 <!-- Roadmap ID + one paragraph. Title format: "<type>(<scope>): <subject>", e.g. "feat(connectors): add Greenhouse fetcher" -->
 
-**Roadmap item:** P?-?? · **Spec:** §?
+**Roadmap item:** P?-?? · **Spec:** ?
 
 ## Changes
 

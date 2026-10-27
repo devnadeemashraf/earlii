@@ -4,10 +4,10 @@ description: LEARN mode - create, hint, grade or skip a real-work exercise for t
 argument-hint: "[create <ID> | hint <ID-n> <1|2|3> | grade <ID-n> | skip <ID-n>]"
 ---
 
-Follow docs/learning/exercises/README.md for the file format, and AGENTS.md §5 for the rules.
+Follow docs/learning/exercises/README.md for the file format, and AGENTS.md section 5 for the rules.
 
 **create `<ID>`**
-1. From the item's real work, pick 1–2 pieces that teach a core, in-demand skill (see ROADMAP §Curriculum map). Avoid boilerplate and CRUD.
+1. From the item's real work, pick 1–2 pieces that teach a core, in-demand skill (see ROADMAP section Curriculum map). Avoid boilerplate and CRUD.
 2. Rotate the exercise types: implement, bug hunt, optimise, test it, review it, design it, explain it. Check docs/learning/SKILLS.md for weak spots and what's due.
 3. Write the stub at the exact file, function and signature, marked `// EXERCISE <ID>-<n>: <one line>`. The surrounding code must compile, and the full check must pass apart from the exercise's own tests, which are skipped until the owner starts.
 4. Write the failing tests: happy, sad, edge and abuser paths.

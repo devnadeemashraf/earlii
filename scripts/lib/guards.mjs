@@ -2,6 +2,7 @@
 // Pure functions: callers inject the current branch and git lookups so the
 // rules are unit-testable without a repository.
 
+import { bannedCharMessage } from "./banned.mjs";
 import { findAiTraces } from "./conventional.mjs";
 import { splitCommands, stripPrefixes, tokenize } from "./shell.mjs";
 
@@ -73,6 +74,7 @@ function evaluateGit(tokens, ctx, rawSegment) {
       if (findAiTraces(rawSegment).length > 0) {
         return deny("AI-attribution trailers or footers are not allowed in this repo.");
       }
+      if (bannedCharMessage(rawSegment)) return deny(bannedCharMessage(rawSegment));
       return allow();
     }
     case "push":
@@ -94,6 +96,13 @@ function evaluateGh(tokens, ctx, rawSegment) {
   }
   if (group === "repo" && (action === "delete" || action === "archive")) {
     return deny("Repository deletion or archival is not allowed.");
+  }
+  if (
+    group === "pr" &&
+    ["create", "edit", "comment"].includes(action) &&
+    bannedCharMessage(rawSegment)
+  ) {
+    return deny(bannedCharMessage(rawSegment));
   }
   if (group === "pr" && action === "create") {
     if (findAiTraces(rawSegment).length > 0) {
@@ -174,5 +183,22 @@ export function evaluateEdit(relPath) {
     return deny(`${p} is generated. Edit the source and re-run the generator (task gen).`);
   }
   if (APPROVAL_REQUIRED.has(p)) return ask(APPROVAL_REQUIRED.get(p));
+  return allow();
+}
+
+/**
+ * Decides whether new file content may be written. Accepts the Write (`content`),
+ * Edit (`new_string`) and MultiEdit (`edits[].new_string`) input shapes.
+ */
+export function evaluateEditContent(toolInput) {
+  const texts = [
+    toolInput.content,
+    toolInput.new_string,
+    ...(toolInput.edits ?? []).map((e) => e.new_string),
+  ].filter((t) => typeof t === "string");
+  for (const text of texts) {
+    const message = bannedCharMessage(text);
+    if (message) return deny(message);
+  }
   return allow();
 }

@@ -17,6 +17,9 @@ Every version and external fact the project relies on, with the date it was veri
 | zizmor | 1.31.1 | 2026-10-27 | https://github.com/zizmorcore/zizmor/releases (v1.31.1, 2026-10-15) |
 | gopls | 0.24.0 | 2026-10-27 | https://github.com/golang/tools/releases (gopls/v0.24.0); `gopls mcp` subcommand confirmed via `gopls mcp -h` |
 | Biome | 2.6.3 | 2026-10-27 | `npm view @biomejs/biome version` |
+| TypeScript | 7.0.2 | 2026-10-27 | `npm view typescript version`. Native compiler; `tsc` works with `paths` without `baseUrl` (verified on the alias fixture) |
+| Vite | 8.3.5 | 2026-10-27 | `npm view vite version` |
+| Vitest | 5.0.5 | 2026-10-27 | `npm view vitest version`. Runs on Vite 8 config; verified on the alias fixture |
 | mise (installer, not pinned) | 2026.10.20 latest; 2026.10.19 installed locally | 2026-10-27 | https://github.com/jdx/mise/releases |
 
 ## Pinned GitHub Actions (by commit SHA)
@@ -43,9 +46,6 @@ Every version and external fact the project relies on, with the date it was veri
 | grafana/otel-lgtm | v0.38.1 | P0-04 | 2026-10-27 | GitHub releases |
 | OpenTelemetry Go | v1.47.0 | P0-07 | 2026-10-27 | Go module proxy |
 | React | 19.3.1 | P0-03 | 2026-10-27 | npm registry |
-| Vite | 8.3.5 | P0-03 | 2026-10-27 | npm registry |
-| TypeScript | 7.0.2 | P0-03 | 2026-10-27 | npm registry. Major 7 is the native compiler: confirm Vite/Vitest compatibility at P0-03 |
-| Vitest | 5.0.5 | P0-03 | 2026-10-27 | npm registry |
 | @tanstack/react-router | 1.170.46 | P0-03 | 2026-10-27 | npm registry |
 | @tanstack/react-query | 5.105.0 | P0-03 | 2026-10-27 | npm registry |
 | Tailwind CSS | 4.3.3 | P0-03 | 2026-10-27 | npm registry |
@@ -74,13 +74,15 @@ Every version and external fact the project relies on, with the date it was veri
 | `golangci-lint fmt <file>` formats only the named files | 2026-10-27 | Local test with v2.15.0 |
 | Biome 2.6 formats Markdown and inserts a blank line after the opening `---` of frontmatter (breaks skills/agents) | 2026-10-27 | Observed locally; `*.md` excluded in `biome.json` |
 | Biome 2.6: `linter.rules.recommended` is deprecated in favour of `linter.rules.preset` | 2026-10-27 | Biome deprecation diagnostic; `configuration_schema.json` |
+| Vite 8 resolves tsconfig `paths` natively with `resolve.tsconfigPaths: true` (default `false`); no plugin needed | 2026-10-27 | `node_modules/vite/dist/node/index.d.ts` (`ResolveOptions.tsconfigPaths`); proven by `scripts/test/ts-alias.test.mjs` |
+| Biome 2.6 `style/noRestrictedImports` supports gitignore-style `patterns` (used to ban `../` imports) | 2026-10-27 | `configuration_schema.json` (`PatternOptions.group`); proven by `scripts/test/ts-alias.test.mjs` |
 
 ## UNVERIFIED (check before relying on them)
 
 | Claim | How to check |
 | :-- | :-- |
-| Grafana Cloud free tier: ~10k active metric series, 50 GB logs/traces, 14-day retention (secondary sources only) | https://grafana.com/pricing, at P0-07 / P2-16 |
+| Grafana Cloud free tier: ~10k active metric series, 50 GB logs/traces, 14-day retention (secondary sources only) | https://grafana.com/pricing, at P0-07 / P2-17 |
 | India commercial SMS requires TRAI DLT sender/template registration (affects SCP-01 phone OTP) | TRAI / SMS-provider documentation, before any phone-OTP work |
 | Dependabot supports pnpm 12 lockfiles | Watch the first monthly Dependabot run; see the Insights → Dependency graph → Dependabot tab |
 | Greenhouse Job Board API and Lever Postings API: public access and terms allow polling | The official API docs and terms, recorded in LEGAL.md at P1-04 / P1-05 |
-| Keka, Darwinbox, Zoho Recruit public careers feeds and terms (SPEC §8) | Provider docs and terms (D-08) |
+| Keka, Darwinbox, Zoho Recruit public careers feeds and terms (SPEC section 8) | Provider docs and terms (D-08) |

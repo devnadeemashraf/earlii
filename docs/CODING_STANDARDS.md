@@ -8,6 +8,7 @@ These standards are enforced by tooling wherever possible (`task check`). Where 
 - **No TODO without an ID:** `// TODO(P1-07): …` or `// TODO(BP-003): …`.
 - **Generated code lives in `gen/` directories** (or `*.gen.ts`, `*.pb.go`, `*_pb.ts`) and is never edited by hand. Change the source and run `task gen`.
 - **Comments explain *why*, not *what*.** Never add AI attribution in comments.
+- **Never use the section sign (U+00A7)**, in any file, commit or PR. Write "section 4" or "SPEC A2". `task lint:text` and the hooks enforce this.
 - **Time:** store UTC and present in the user's zone (IST default). Never call the wall clock directly in logic: inject a clock.
 - **No PII in logs or traces**: no emails, names, resume text or tokens.
 
@@ -36,8 +37,10 @@ These standards are enforced by tooling wherever possible (`task check`). Where 
 | Formatter and linter | Biome (`biome.json`): 2-space indent, double quotes, trailing commas, 100 columns, recommended rules |
 | Types | `strict` TS. No `any` (use `unknown` and narrow). Types come from the generated Connect client, never hand-copied |
 | Naming | Components `PascalCase.tsx`; hooks `useThing`; files are kebab- or Pascal-case, used consistently within a folder |
+| Config | Every app or package has a `tsconfig.json` that extends `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`) and declares `"paths": { "@/*": ["./src/*"] }`, plus a `vite.config.ts` with `resolve.tsconfigPaths: true`. Copy `scripts/test/fixtures/ts-alias/` (ADR-0004) |
+| Imports | `@/…` for anything outside the current folder; `./x` for siblings; **never `../`** (Biome `noRestrictedImports` rejects it). Other workspace packages are imported by name (`@earlii/tokens`), never through `@/` or relative paths. Type-only imports use `import type` |
 | Data | Server state in TanStack Query only; URL state in the router; local UI state in components. No global stores until one is needed |
-| UX rules (SPEC §4) | Optimistic updates with rollback; skeletons, never spinners; every destructive action gets a 5-second undo; 44 px targets; respect `prefers-reduced-motion` |
+| UX rules (SPEC section 4) | Optimistic updates with rollback; skeletons, never spinners; every destructive action gets a 5-second undo; 44 px targets; respect `prefers-reduced-motion` |
 | Errors | Typed `ConnectError` handling at the query layer; user-facing copy from one place; never swallow errors |
 | Dependencies | Check bundle impact before adding. shadcn components are copied in and owned. No UI kit on top |
 | Security | Never `dangerouslySetInnerHTML` except through the sanitiser (P2-09); no tokens in localStorage (sessions are httpOnly cookies, P2-10) |

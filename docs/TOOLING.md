@@ -1,6 +1,6 @@
 # Open-source tooling for an AI-assisted workflow
 
-Research for how Earlii's code is written, checked and shipped when an AI agent writes most of it. Every licence and version below was verified on **2026-10-27**: licences from each repository's licence file (GitHub API), versions from the latest GitHub release or package registry. Re-verify before adopting anything listed as *planned* (AGENTS.md §3).
+Research for how Earlii's code is written, checked and shipped when an AI agent writes most of it. Every licence and version below was verified on **2026-10-27**: licences from each repository's licence file (GitHub API), versions from the latest GitHub release or package registry. Re-verify before adopting anything listed as *planned* (AGENTS.md section 3).
 
 ## Why AI-assisted code needs more tooling, not less
 
@@ -37,6 +37,9 @@ Agents produce plausible code quickly. The failure modes shift from "slow to wri
 | [Playwright MCP](https://github.com/microsoft/playwright-mcp) | Lets the agent open the PWA, take accessibility snapshots and screenshots, and verify UI rules (44 px targets, no blank screens) | Apache-2.0 | v0.0.83 | `.mcp.json`, `/snapshot` |
 | [Dependabot](https://github.com/dependabot/dependabot-core) | Monthly grouped update PRs for npm and Actions. Needs no third-party app with repo write access | MIT (core) | v0.401.0 (core) | `.github/dependabot.yml` |
 | Node `node:test` | A zero-dependency test runner for repo scripts and hook logic | MIT (Node.js) | Node 24.22.1 | `scripts/test/` |
+| [TypeScript](https://github.com/microsoft/TypeScript) | Strict typecheck; `paths` is the single source for the `@/*` alias (ADR-0004) | Apache-2.0 | 7.0.2 | `tsconfig.base.json` |
+| [Vite](https://github.com/vitejs/vite) | Dev server and production bundler; resolves tsconfig `paths` natively (`resolve.tsconfigPaths`) | MIT | 8.3.5 | alias fixture; apps from P0-03 |
+| [Vitest](https://github.com/vitest-dev/vitest) | Test runner that inherits Vite config, aliases included | MIT | 5.0.5 | alias fixture; apps from P0-03 |
 
 ## Adopt at the roadmap item (planned)
 

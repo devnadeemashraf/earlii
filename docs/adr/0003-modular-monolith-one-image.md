@@ -3,13 +3,13 @@
 - **Status:** Accepted
 - **Date:** 2026-10-27
 - **Roadmap item:** P0-02, P0-06
-- **Deciders:** owner (SPEC §3 Packaging) + architect
+- **Deciders:** owner (SPEC section 3 Packaging) + architect
 
 ## Context
 
-SPEC §3 asks for "one Dockerfile, one image; each mode runs as its own container", on free tiers first and AWS later. The workload has three shapes:
+SPEC section 3 asks for "one Dockerfile, one image; each mode runs as its own container", on free tiers first and AWS later. The workload has three shapes:
 
-- a latency-sensitive API (SPEC §4: under 100 ms taps, under 200 ms search);
+- a latency-sensitive API (SPEC section 4: under 100 ms taps, under 200 ms search);
 - bursty background work (fetching, diffing, enrichment, notifications);
 - a scheduler.
 

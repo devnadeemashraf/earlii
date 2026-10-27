@@ -7,7 +7,7 @@
 
 ## Context
 
-A Go backend serves a React PWA now and an Expo app later. SPEC §Z requires typed, generated Go and TypeScript clients and **breaking-change checks in CI**. The owner wants to learn inter-service communication (sync RPC vs REST vs async jobs). Clients must work from browsers, without a proxy.
+A Go backend serves a React PWA now and an Expo app later. SPEC section Z requires typed, generated Go and TypeScript clients and **breaking-change checks in CI**. The owner wants to learn inter-service communication (sync RPC vs REST vs async jobs). Clients must work from browsers, without a proxy.
 
 ## Options considered
 
@@ -16,7 +16,7 @@ A Go backend serves a React PWA now and an Expo app later. SPEC §Z requires typ
   - one `.proto` source → a Go server and a TS client;
   - `buf breaking` gives real wire-compatibility checks;
   - speaks gRPC, gRPC-Web and a plain HTTP/JSON protocol, so it works from browsers with no proxy and calls can be debugged with curl;
-  - server streaming suits "AI drafts stream" (SPEC §4).
+  - server streaming suits "AI drafts stream" (SPEC section 4).
 - **Cons:**
   - a less familiar RPC style;
   - URLs aren't resource-shaped;
@@ -36,7 +36,7 @@ A Go backend serves a React PWA now and an Expo app later. SPEC §Z requires typ
 - **Cons:**
   - no enforced contract;
   - drift between server and client;
-  - fails the SPEC §Z requirement.
+  - fails the SPEC section Z requirement.
 
 ## Decision
 

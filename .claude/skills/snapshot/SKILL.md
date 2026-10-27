@@ -10,7 +10,7 @@ Skip with "skip: no web app yet (P0-03)" if `apps/web` doesn't exist.
 2. With the `playwright` MCP, open `<url>$ARGUMENTS` and capture:
    - at 390×844 (phone): an accessibility snapshot and a screenshot, in light and dark;
    - at 1280×800 (desktop): a screenshot.
-3. Check against SPEC §4 and §O:
+3. Check against SPEC section 4 and section O:
    - no blank screen (skeletons, not spinners);
    - primary actions within thumb reach;
    - touch targets at least 44 px;

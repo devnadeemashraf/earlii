@@ -103,3 +103,58 @@ Interview-ready write-ups of real decisions in this codebase. One entry per nota
 
 **Likely follow-ups:**
 - Q: How would you catch this class of bug earlier? A: Validate configs with the consumer's own parser where possible, and run a formatter's first pass on a branch with the diff reviewed.
+
+---
+
+## S-004 · One alias declaration for four TypeScript contexts   (P0-01 review, ADR-0004)
+
+**Problem:** the owner wanted `@/` imports to work in development, testing and production. The classic failure is an alias declared in several places (tsconfig, the bundler, the test runner) that drift apart. The code typechecks but the build fails, or tests pass but the dev server can't resolve.
+
+**Options:**
+- **A: tsconfig `paths` as the single source**, read natively by Vite 8 (`resolve.tsconfigPaths`); Vitest inherits it.
+- **B: Node subpath imports (`#/*`).** Standards-based, but an unfamiliar prefix, and shadcn expects `@/`.
+- **C: Duplicate alias maps, or the `vite-tsconfig-paths` plugin.** Drift risk, or a dependency that Vite 8 makes unnecessary.
+
+**Chose A because:**
+- one declaration per project;
+- zero plugins;
+- shadcn compatibility.
+
+**Skipped B** because two conventions in one codebase is worse than one familiar one. **Skipped C** because duplication is exactly the bug class we're avoiding.
+
+**Result:**
+- `scripts/test/ts-alias.test.mjs` proves all four contexts (10 tests, 2.9 s, `node --test scripts/test/ts-alias.test.mjs`):
+  - `tsc` passes and fails with TS2307 on a broken alias;
+  - Vitest passes;
+  - the dev server rewrites `@/lib/freshness` to `/src/lib/freshness.ts`;
+  - the production bundle has no alias left and runs.
+- Biome now rejects `../` imports in app code, which keeps the convention from eroding.
+
+**Soundbite:** "Aliases usually break because they're declared three times. I declared ours once, in tsconfig, used Vite 8's native resolver for dev and build, and let Vitest inherit it. Then I wrote one test that proves the same import resolves in typecheck, tests, the dev server and the production bundle, plus a lint rule that bans `../` so the convention can't erode."
+
+**Likely follow-ups:**
+- Q: Why not alias across packages too? A: Package boundaries should be explicit. Workspace package names make dependencies visible in `package.json`, so the bundler and tooling treat them as real packages.
+- Q: What breaks if code runs unbundled? A: Node doesn't read tsconfig `paths`, so any TS run without a bundler needs a resolver. That's noted in ADR-0004.
+
+---
+
+## S-005 · Turning a style preference into an enforced rule   (P0-01 review)
+
+**Problem:** the owner banned the section sign everywhere. Dozens of references already existed across docs, skills and the PR body, and a style rule that relies on memory erodes.
+
+**Options:**
+- **A: A note in AGENTS.md.** It depends on the agent remembering.
+- **B: A CI grep.** It catches problems late, and misses commit messages and PR text.
+- **C: One pure function (`findBannedChars`)** reused by the edit guard (before the agent writes), the pre-commit and commit-msg hooks, the PR guard and `task lint:text` in CI.
+
+**Chose C because** it follows the same pattern as S-001: the cheapest, earliest point of enforcement, with independent backstops.
+
+**Skipped B alone** because it can't see commit messages or PR bodies.
+
+**Migration:** a context-aware rewrite instead of a blind delete. "SPEC" plus the sign plus a number became "SPEC section 4". In labelled Spec fields, the sign was simply dropped ("Spec: Q"). The ambiguous leftovers were then reviewed by hand.
+
+**Result:**
+- 0 occurrences in tracked files (`node scripts/check-text.mjs`);
+- the rule is covered by `scripts/test/banned.test.mjs`.
+
+**Soundbite:** "When a rule matters, I make it executable once and reuse it everywhere it can be broken: the editor, commits, PR text and CI."

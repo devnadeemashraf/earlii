@@ -13,6 +13,8 @@ pre-commit:
       stage_fixed: true
     - name: gitleaks
       run: gitleaks git --pre-commit --staged --no-banner --redact
+    - name: banned-chars
+      run: node scripts/check-text.mjs {staged_files}
 
 commit-msg:
   jobs:

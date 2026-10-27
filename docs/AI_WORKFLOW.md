@@ -22,7 +22,7 @@ flowchart TB
 | :-- | :-- | :-- |
 | Instructions | Rules, read order, PR loop, never-list | `AGENTS.md` (Claude reads it through the `@AGENTS.md` import in `CLAUDE.md`) |
 | Handoff | State, fix-first queue, next item, gotchas | `docs/POINTER.md`, injected at session start |
-| Codebase map | Repo map plus module boundaries | `docs/HANDBOOK.md` §3–4, and gopls for symbols, references and implementations |
+| Codebase map | Repo map plus module boundaries | `docs/HANDBOOK.md` section 3–4, and gopls for symbols, references and implementations |
 | Language servers / MCP | `gopls mcp` (Go workspace symbols, diagnostics, references); Playwright MCP (browser snapshots of the PWA); Context7 (optional versioned docs lookup) | `.mcp.json` |
 | Local API reference | `go doc` at the pinned module version; `.d.ts` files in `node_modules`; `--help` for CLIs | `/api-lookup` skill |
 | Hooks | Inject POINTER; block secret, generated and vendored edits; ask before SPEC/LICENSE edits; block commits/pushes to main, force-push, `--no-verify`, merges, and PRs without a POINTER update; auto-format | `.claude/settings.json` → `scripts/claude/*.mjs` → `scripts/lib/*.mjs` (unit-tested) |
@@ -49,7 +49,7 @@ The owner holds all IP. The setting `"attribution": {"commit": "", "pr": "", "se
 2. **Pick the work:**
    - say "next PR" or `/next-pr` (takes FIX-FIRST, then NEXT UP);
    - or `/next-pr P1-03` for a specific item.
-3. The agent follows THE PR LOOP (AGENTS.md §4):
+3. The agent follows THE PR LOOP (AGENTS.md section 4):
    - orient;
    - branch;
    - design: the architect and red-team subagents for M items;
@@ -80,4 +80,4 @@ Run `/handoff` before you stop, even mid-item. POINTER's NEXT UP and gotchas are
 
 ## Other AI tools
 
-AGENTS.md is the shared source. A tool that reads `AGENTS.md` natively needs nothing else. For one that doesn't, add a one-line pointer file (e.g. `.github/copilot-instructions.md`: "Follow AGENTS.md"). Tools without hooks follow the manual checklists in AGENTS.md §8.
+AGENTS.md is the shared source. A tool that reads `AGENTS.md` natively needs nothing else. For one that doesn't, add a one-line pointer file (e.g. `.github/copilot-instructions.md`: "Follow AGENTS.md"). Tools without hooks follow the manual checklists in AGENTS.md section 8.

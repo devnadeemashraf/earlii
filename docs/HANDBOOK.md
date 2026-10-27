@@ -4,7 +4,7 @@ Updated incrementally, as part of every PR that changes what it describes. Secti
 
 ## 1. Orientation
 
-Earlii polls public company job boards, detects new roles within minutes, normalises them for India, and serves a personal feed and alerts. Read in this order: [SPEC](SPEC.md) (what and why) → [ROADMAP](ROADMAP.md) (what's next) → [POINTER](POINTER.md) (where we are) → this handbook (how it works) → [CODING_STANDARDS](CODING_STANDARDS.md).
+Earlii polls public company job boards, detects new roles within minutes, normalises them for India, and serves a personal feed and alerts. Read in this order: SPEC (`docs/SPEC.md`: what and why; **private, local-only and gitignored**, so it isn't on GitHub) → [ROADMAP](ROADMAP.md) (what's next) → [POINTER](POINTER.md) (where we are) → this handbook (how it works) → [CODING_STANDARDS](CODING_STANDARDS.md).
 
 One person maintains everything, with AI help. Optimise for code that is easy to change, test and operate, not for code that is clever.
 
@@ -23,7 +23,7 @@ One person maintains everything, with AI help. Optimise for code that is easy to
 | POINTER | `docs/POINTER.md`, the session handoff file |
 | BP-xxx | A bug from an earlier PR, queued in POINTER's FIX-FIRST QUEUE |
 | SCP-xx | A Spec change proposal (ROADMAP) |
-| D-xx | An open or closed decision (ROADMAP §Decisions) |
+| D-xx | An open or closed decision (ROADMAP section Decisions) |
 | Decision story | An interview-ready write-up of a technical decision (`docs/learning/STORIES.md`) |
 
 ## 3. Repo map
@@ -36,12 +36,15 @@ earlii/
 ├── lefthook.yml              Git hooks: format, secrets, commit-msg, pre-push
 ├── biome.json                TS/JS/JSON/CSS format + lint (Markdown excluded)
 ├── .golangci.yml             Go lint + formatters (gofumpt, goimports)
-├── package.json              pnpm workspace root (Biome only for now)
+├── package.json              pnpm workspace root: Biome, TypeScript, Vite, Vitest (exact pins)
+├── tsconfig.base.json        Shared strict TS options; every TS project extends it and adds the @/* alias (ADR-0004)
 ├── pnpm-workspace.yaml       Workspace globs: apps/*, packages/*
 ├── scripts/                  Repo automation, zero dependencies, tested with node:test
 │   ├── lib/                  Pure logic: conventional commits, guards, handoff, pins, shell parsing
 │   ├── claude/               Claude Code hook entry points (session-start, guard-bash, guard-edit, post-edit-format)
 │   ├── test/                 Tests for all of the above, plus config-parsing tests
+│   │   └── fixtures/ts-alias/ Reference TS project proving @/* in tsc, Vitest, Vite dev and build
+│   ├── check-text.mjs        Banned-character scan (the section sign) for files and staged changes
 │   ├── doctor.mjs            Tool pin check
 │   ├── handoff-check.mjs     POINTER/HANDBOOK rule (CI + local)
 │   ├── commit-msg.mjs        commit-msg hook
@@ -93,11 +96,11 @@ flowchart LR
 - **Repo scripts:** `node:test` in `scripts/test/`. Pure logic lives in `scripts/lib/`, so the rules are unit-tested without git. The CLIs are also tested end to end through `spawnSync`.
 - **Go** (planned, P0-02): table-driven unit tests next to the code; `-race` in CI; integration tests against Postgres (P0-04, D-10); fixtures for connectors, with no live network in CI.
 - **Web** (planned, P0-03): Vitest + Testing Library; Playwright e2e for the key flows (P2-04, P2-05).
-- **Required paths for every change:** happy, sad, edge and abuser. See CODING_STANDARDS §Tests.
+- **Required paths for every change:** happy, sad, edge and abuser. See CODING_STANDARDS section Tests.
 
 ## 8. Performance budgets
 
-The canonical budgets live in [ROADMAP §Budgets](ROADMAP.md#budgets). How each is measured is added here as each budget gets a gate (planned, P0-06, P2-03, P2-07).
+The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How each is measured is added here as each budget gets a gate (planned, P0-06, P2-03, P2-07).
 
 ## 9. Security model
 
@@ -108,7 +111,7 @@ The canonical budgets live in [ROADMAP §Budgets](ROADMAP.md#budgets). How each 
 
 ## 10. Operations
 
-(planned, P2-16) Deploys, backups, dashboards, alerts and runbooks.
+(planned, P2-17) Deploys, backups, dashboards, alerts and runbooks.
 
 ## 11. How-to recipes
 

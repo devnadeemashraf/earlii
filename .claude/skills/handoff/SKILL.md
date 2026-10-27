@@ -19,6 +19,6 @@ Bring the handoff docs in line with the current branch. Work from `git diff orig
    - Fill in any "(planned, <ID>)" section this PR built.
    - Add new glossary terms.
 4. **docs/VERSIONS.md:** add any new dependency or fact with today's date and a source link.
-5. **docs/adr/:** confirm any ADR written this PR is linked from HANDBOOK §Decision log.
+5. **docs/adr/:** confirm any ADR written this PR is linked from HANDBOOK section Decision log.
 6. **docs/learning/SKILLS.md:** update levels and evidence links for exercises done. Schedule the next review dates.
 7. Run `task handoff` and `task check`. Both must pass.

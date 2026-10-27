@@ -46,7 +46,9 @@ tasks:
   lint:
     desc: All linters
     cmds:
+      - task: lint:text
       - task: lint:ts
+      - task: lint:types
       - task: lint:go
       - task: lint:actions
       - task: lint:secrets
@@ -55,6 +57,21 @@ tasks:
     desc: Biome format + lint + import order check (read-only)
     cmds:
       - pnpm exec biome ci .
+
+  lint:text:
+    desc: Reject banned characters (the section sign) in every tracked file
+    cmds:
+      - node scripts/check-text.mjs
+
+  lint:types:
+    desc: Typecheck every TS app and package (tsc -p)
+    cmds:
+      - |
+        found=0
+        for f in apps/*/tsconfig.json packages/*/tsconfig.json; do
+          if [ -f "$f" ]; then found=1; node node_modules/typescript/bin/tsc -p "$f"; fi
+        done
+        if [ "$found" = 0 ]; then echo "skip: no TS apps or packages yet (P0-03); the alias fixture is typechecked in test:scripts"; fi
 
   lint:go:
     desc: golangci-lint (includes formatter checks)

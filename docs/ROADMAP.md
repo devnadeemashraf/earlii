@@ -18,7 +18,7 @@ This is an honest estimate at **~20 h/week**: about 8 sessions a week, roughly 5
 | :-- | :-: | :-: | :-- |
 | 0 · Bootstrap | 7 | ~14 | weeks 1–3 |
 | 1 · Data platform | 14 | ~35 | weeks 4–10 |
-| 2 · Personal MVP | 16 | ~42 | weeks 11–19 (**M2 ≈ early March 2027**) |
+| 2 · Personal MVP | 17 | ~45 | weeks 11–19 (**M2 ≈ early March 2027**) |
 | 3 · Public beta | 10 epics | ~70 | weeks 20–34 (≈ mid-2027) |
 | 4 · Paid launch | 6 epics | ~45 | weeks 35–45 (≈ Q3–Q4 2027) |
 
@@ -31,19 +31,21 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 **Goal:** the AI PR loop works end to end on an empty skeleton. That means CI is green, the hooks enforce the rules, and one request flows web → API → DB → job.
 
 ### P0-01 · Starter kit: docs, tooling, CI and AI harness
-- **Spec:** §Z [MVP] · **Size:** M · **Status:** in review (#1)
+- **Spec:** Z [MVP] · **Size:** M · **Status:** in review (#1)
 - **Acceptance:**
   - every kit document exists;
   - `task doctor` and `task check` are green on Windows and Linux CI;
   - the hooks reject a non-conventional commit, an AI trailer and a push to main;
   - the Claude hooks block the forbidden git/gh actions;
-  - the handoff check runs on PRs.
-- **Tests:** `scripts/test/*.test.mjs`, covering the guards, the commit-msg rule, the handoff rule, pins, the CLIs and the configs parsing.
+  - the handoff check runs on PRs;
+  - the TypeScript path alias `@/*` (ADR-0004) resolves in typecheck, tests, the dev server and the production build, and Biome rejects `../` imports in app code;
+  - the banned character (the section sign) is rejected in files, commits, PR text and agent edits.
+- **Tests:** `scripts/test/*.test.mjs`, covering the guards, the commit-msg rule, the handoff rule, pins, the CLIs, the configs parsing, the alias fixture (`scripts/test/fixtures/ts-alias`) and the banned-character check.
 - 🧪 Run `task setup`, then `task check`. Try `git commit -m "bad message"` and confirm it's rejected. In Claude Code, ask it to `git push origin main` and confirm it's blocked.
 - **LEARN:** P0-01-1 *explain it*: how the guards turn policy into enforcement.
 
 ### P0-02 · Go skeleton: one binary, many modes
-- **Spec:** §3, §Z [MVP] · **Size:** M · **Status:** todo
+- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - `go.work` plus the `backend/` module;
   - `earlii api|worker|scheduler`;
@@ -57,9 +59,10 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P0-02-1 *implement*: graceful shutdown with `signal.NotifyContext`, `http.Server.Shutdown` and `errgroup`. This covers context cancellation, the core of all Go concurrency.
 
 ### P0-03 · Web skeleton
-- **Spec:** §3, §O [MVP] · **Size:** M · **Status:** todo
+- **Spec:** 3, O [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - `apps/web`: Vite + React + TS, TanStack Router (file routes) and Query, Tailwind, shadcn/ui initialised;
+  - the path alias follows the fixture exactly: `tsconfig.json` extends `tsconfig.base.json` with `"paths": { "@/*": ["./src/*"] }`, and `vite.config.ts` sets `resolve.tsconfigPaths: true` (ADR-0004). shadcn's `components.json` aliases use `@/`;
   - Vitest + Testing Library;
   - one route renders a skeleton, then content;
   - a PWA manifest;
@@ -69,7 +72,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P0-03-1 *explain it*: file-based routing with codegen vs a hand-written route tree.
 
 ### P0-04 · Local stack, migrations, sqlc
-- **Spec:** §3, §X, §Z [MVP] · **Size:** M · **Status:** todo · **Blocked by:** D-07, D-10 (decided in the item's design step)
+- **Spec:** 3, X, Z [MVP] · **Size:** M · **Status:** todo · **Blocked by:** D-07, D-10 (decided in the item's design step)
 - **Acceptance:**
   - `compose.yaml` with Postgres and `grafana/otel-lgtm`;
   - `task dev` brings everything up;
@@ -81,7 +84,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P0-04-1 *design it*: an ADR on migration strategy (expand/contract, forward-only, locking).
 
 ### P0-05 · Contracts: Protobuf + Connect
-- **Spec:** §3, §Z [MVP] · **Size:** M · **Status:** todo
+- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - `proto/earlii/v1/health.proto`;
   - `buf lint`, plus `buf breaking` against main in CI;
@@ -91,7 +94,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P0-05-1 *implement*: a Connect interceptor that adds request IDs and structured access logs (the middleware pattern).
 
 ### P0-06 · One image, many containers
-- **Spec:** §3 Packaging, §Z [MVP] · **Size:** S · **Status:** todo
+- **Spec:** 3 Packaging, Z [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:**
   - a multi-stage Dockerfile building a static binary on a minimal base;
   - the compose services `api`, `worker` and `scheduler` all run the same image;
@@ -101,7 +104,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P0-06-1 *optimise*: get the image under budget, and explain each layer.
 
 ### P0-07 · Observability base
-- **Spec:** §X [MVP] · **Size:** M · **Status:** todo
+- **Spec:** X [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - OTel traces, metrics and logs (slog bridge);
   - RED metrics per RPC;
@@ -117,7 +120,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 **Goal:** 200 India-hiring companies polled politely on an adaptive schedule, with change history, deduplication and India normalisation, and no user features yet.
 
 ### P1-01 · Company registry schema
-- **Spec:** §P [MVP] · **Size:** M · **Status:** todo
+- **Spec:** P [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - tables for companies, aliases, domains, offices, hiring regions and boards;
   - a source recorded per field, plus first-seen / last-checked / last-changed timestamps;
@@ -127,7 +130,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P1-01-1 *design it*: the ADR for field-level provenance.
 
 ### P1-02 · India location tree and aliases
-- **Spec:** §S India pack [MVP] · **Size:** M · **Status:** todo
+- **Spec:** S India pack [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - states and UTs → cities, plus remote-India;
   - aliases (Bangalore → Bengaluru, Gurgaon → Gurugram);
@@ -137,7 +140,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P1-02-1 *implement*: a trie for prefix lookup and alias resolution, with Big-O analysis vs a sorted slice plus binary search.
 
 ### P1-03 · Polite HTTP client
-- **Spec:** §Q polite fetching [MVP] · **Size:** M · **Status:** todo
+- **Spec:** Q polite fetching [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - a per-host token-bucket limiter;
   - timeouts and a response-size cap;
@@ -151,7 +154,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - P1-03-2 *implement*: an LRU cache for robots.txt (a hash map plus a doubly linked list).
 
 ### P1-04 · Connector interface and Greenhouse
-- **Spec:** §Q [MVP] · **Size:** S · **Status:** todo
+- **Spec:** Q [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:**
   - a `Connector` interface (list jobs → normalised raw postings);
   - the Greenhouse public job-board API, with its docs and terms verified and recorded in LEGAL;
@@ -161,13 +164,13 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P1-04-1 *review it*: the AI opens a PR with seeded issues and the owner reviews it.
 
 ### P1-05 · Lever connector
-- **Spec:** §Q [MVP] · **Size:** S · **Status:** todo
+- **Spec:** Q [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:** Lever postings API, with terms verified; fixtures.
 - **Tests:** the same matrix as P1-04.
 - **LEARN:** P1-05-1 *test it*: the owner writes the suite, graded by mutation testing (gremlins) and seeded bugs.
 
 ### P1-06 · Change detection and history
-- **Spec:** §R [MVP] · **Size:** M · **Status:** todo
+- **Spec:** R [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - diff by stable job ID → new / updated / closed;
   - a canonical content hash → a version row on change;
@@ -178,7 +181,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P1-06-1 *implement*: set-diff plus canonical hashing, and prove idempotency with a test.
 
 ### P1-07 · Adaptive fetch scheduling with River
-- **Spec:** §Q adaptive schedule [MVP] · **Size:** M · **Status:** todo
+- **Spec:** Q adaptive schedule [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - periodic enqueue;
   - one in-flight job per board (unique jobs);
@@ -189,19 +192,19 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P1-07-1 *implement*: EWMA-based tiering with a min-heap of next-due boards (O(log n) scheduling).
 
 ### P1-08 · Board health and auto-pause
-- **Spec:** §Q board health [MVP] · **Size:** S · **Status:** todo
+- **Spec:** Q board health [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:** a consecutive-failure counter; auto-pause at N; an admin alert (a log plus a metric); resume.
 - **Tests:** state machine transitions; recovery resets the counter.
 - **LEARN:** P1-08-1 *bug hunt*: on a practice branch, 2 planted state-machine bugs and only the symptom given.
 
 ### P1-09 · India title rules
-- **Spec:** §S [MVP] · **Size:** M · **Status:** todo
+- **Spec:** S [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:** titles → role family + level ("SDE-2", "SSE", "Member of Technical Staff", "Lead"), with a confidence score and "unknown" when unsure.
 - **Tests:** a labelled table of 150+ titles; ambiguous cases fall to unknown.
 - **LEARN:** P1-09-1 *implement*: tokenisation plus rule matching with string algorithms (normalisation, n-grams).
 
 ### P1-10 · Salary and experience parsing
-- **Spec:** §S [MVP] · **Size:** M · **Status:** todo
+- **Spec:** S [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - LPA, lakhs and crore; CTC vs base; ranges;
   - "3–5 yrs" and "5+ years";
@@ -210,7 +213,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P1-10-1 *implement*: the parser plus a fuzz target; interval overlap for experience ranges.
 
 ### P1-11 · Board discovery and approval queue
-- **Spec:** §P board discovery [MVP] · **Size:** M · **Status:** todo
+- **Spec:** P board discovery [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:**
   - paste a careers URL → detect the provider and board ID → validate that it returns jobs → approval queue;
   - SSRF-safe: no private IPs, no redirect to private IPs, and re-check after DNS resolution.
@@ -218,18 +221,18 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P1-11-1 *implement*: the SSRF-safe URL validator (abuser-path testing).
 
 ### P1-12 · Repost detection and cross-board dedupe
-- **Spec:** §R repost detection, §S dedupe [MVP] · **Size:** M · **Status:** todo
+- **Spec:** R repost detection, S dedupe [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:** SimHash over normalised text; Hamming threshold; same company + title + similar text within N days → repost; duplicate clusters via union-find.
 - **Tests:** labelled near-duplicate pairs (precision/recall reported); a benchmark.
 - **LEARN:** P1-12-1 *optimise*: SimHash + popcount, then LSH banding to beat an O(n²) baseline under budget.
 
 ### P1-13 · Pipeline metrics
-- **Spec:** §X key numbers [MVP] · **Size:** S · **Status:** todo
+- **Spec:** X key numbers [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:** detect lag (posted → first seen, when the provider exposes a posted time), fetch errors, queue depth, a Grafana dashboard JSON committed.
 - **Tests:** metric emission tests with an in-memory reader.
 
 ### P1-14 · Seed: 200 companies
-- **Spec:** §Z seed data [MVP] · **Size:** S · **Status:** todo
+- **Spec:** Z seed data [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:** 200 India-hiring companies with validated Greenhouse/Lever boards in the seed file; a loader.
 - **Tests:** seed validation (unique domains, valid board IDs).
 - 🧪 Spot-check 20 random boards in the browser against the stored postings: counts within ±2, titles match.
@@ -242,29 +245,32 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 
 | ID | Title | Spec | Size | Acceptance (summary) | Required tests | LEARN |
 | :-- | :-- | :-- | :-: | :-- | :-- | :-- |
-| P2-01 | Design tokens and theme presets | §O | M | Shared token package; Tailwind theme; Neon/Soft/Brutal presets; dark first-class | WCAG AA contrast test across every preset, in CI | *implement* the contrast-ratio checker |
-| P2-02 | Core components | §O | M | Role card, chip, badge, button, skeleton, toast with undo, empty state; reduced motion; 44 px targets | Component tests; a11y checks | *test it* |
-| P2-03 | Feed RPC | §B1, §U | M | Keyset pagination; hard filters; freshness × match ranking; indexes | p95 at most 150 ms on 100k postings (bench); stable cursors | *optimise*: keyset vs offset with `EXPLAIN ANALYZE` |
-| P2-04 | Guest feed and city picker | §A1 | S | Real roles before sign-up; no IP tracking | e2e: first open → feed | — |
-| P2-05 | Feed UI | §B1 | M | Virtualised list; cached-first; "new since" divider; never blank | e2e plus visual snapshot | *implement* optimistic update with rollback |
-| P2-06 | Filters and persistence | §B3 | M | Location tree, posted-within, level and more; persisted; "turn into alert" | Unit plus e2e | — |
-| P2-07 | Search as you type | §B4 | M | FTS plus `pg_trgm`; debounce; stale-response cancellation | Under 200 ms end to end (bench); race test | *implement* AbortController race handling; trigram ranking |
-| P2-08 | Triage and undo | §B2 | M | Save/skip; J/K/S/X/O shortcuts; 5 s undo; "not for me because…" | Unit plus e2e | *implement* an undo deque with delayed commit |
-| P2-09 | Role detail | §C | M | Sanitised HTML; eligibility "not stated"; staleness warnings | Red-team XSS corpus | *bug hunt* (sanitiser) |
-| P2-10 | Google sign-in and sessions | §A2 | M | OIDC; opaque session tokens hashed at rest; device list; sign out everywhere | Red-team auth cases | *design it*: the session model |
-| P2-11 | 60-second setup (no resume) | §A3 | M | Where / what / must-haves, at most 3 fields per step; instant feed | e2e timed | — |
-| P2-12 | Saved searches and incremental matching | §D1, §U | M | Matching runs on new postings only | Idempotency; no full-table scans | *implement* incremental matching |
-| P2-13 | Daily email digest | §D, §V | M | Fan-out idempotent per (user, role, channel); quiet hours (IST); unsubscribe link | Exactly-once effect under retry | *implement* idempotency keys + outbox |
-| P2-14 | Settings, export, deletion | §N | M | Theme; notifications; JSON export; hard delete within 30 days; consent records | Deletion leaves no rows (test) | — |
-| P2-15 | Admin basics | §W | M | Connector health; approval queue; pause/resume | Authz: non-admin is denied | — |
-| P2-16 | Deploy | §3 Hosting | M | API, worker, DB and OTLP to Grafana Cloud; deploy on merge to main | Post-deploy smoke test | *explain it*: the deploy pipeline |
+| P2-01 | Design tokens and theme presets | O | M | Shared token package; Tailwind theme; Neon/Soft/Brutal presets; dark first-class | WCAG AA contrast test across every preset, in CI | *implement* the contrast-ratio checker |
+| P2-02 | Core components | O | M | Role card, chip, badge, button, skeleton, toast with undo, empty state; reduced motion; 44 px targets | Component tests; a11y checks | *test it* |
+| P2-03 | Feed RPC | B1, U | M | Keyset pagination; hard filters; freshness × match ranking; indexes | p95 at most 150 ms on 100k postings (bench); stable cursors | *optimise*: keyset vs offset with `EXPLAIN ANALYZE` |
+| P2-04 | Guest feed and city picker | A1 | S | Real roles before sign-up; no IP tracking | e2e: first open → feed | — |
+| P2-05 | Feed UI | B1 | M | Virtualised list; cached-first; "new since" divider; never blank | e2e plus visual snapshot | *implement* optimistic update with rollback |
+| P2-06 | Filters and persistence | B3 | M | Location tree, posted-within, level and more; persisted; "turn into alert" | Unit plus e2e | — |
+| P2-07 | Search as you type | B4 | M | FTS plus `pg_trgm`; debounce; stale-response cancellation | Under 200 ms end to end (bench); race test | *implement* AbortController race handling; trigram ranking |
+| P2-08 | Triage and undo | B2 | M | Save/skip; J/K/S/X/O shortcuts; 5 s undo; "not for me because…" | Unit plus e2e | *implement* an undo deque with delayed commit |
+| P2-09 | Role detail | C | M | Sanitised HTML; eligibility "not stated"; staleness warnings | Red-team XSS corpus | *bug hunt* (sanitiser) |
+| P2-10 | Google sign-in and sessions | A2 | M | OIDC; opaque session tokens hashed at rest; device list; sign out everywhere | Red-team auth cases | *design it*: the session model |
+| P2-11 | 60-second setup (no resume) | A3 | M | Where / what / must-haves, at most 3 fields per step; instant feed | e2e timed | — |
+| P2-12 | Saved searches and incremental matching | D1, U | M | Matching runs on new postings only | Idempotency; no full-table scans | *implement* incremental matching |
+| P2-13 | Daily email digest | D, V | M | Fan-out idempotent per (user, role, channel); quiet hours (IST); unsubscribe link | Exactly-once effect under retry | *implement* idempotency keys + outbox |
+| P2-14 | Profile | N, A3 (SCP-03) | M | A polished profile page: Google name and photo; headline; job preferences from setup (locations, role families, levels, must-haves), all editable in place with optimistic saves; profile completeness hint | Unit + e2e; authz: only the owner can read or edit a profile | *design it*: the profile and preferences data model |
+| P2-15 | Settings and privacy | N, A2 (SCP-03) | M | Notification settings per channel; quiet hours and daily cap; theme (light / dark / system) and accent; signed-in devices with "sign out everywhere"; JSON export; hard delete within 30 days; consent records | Deletion leaves no rows (test); sign-out-everywhere revokes all sessions | — |
+| P2-16 | Admin basics | W | M | Connector health; approval queue; pause/resume | Authz: non-admin is denied | — |
+| P2-17 | Deploy | 3 Hosting | M | API, worker, DB and OTLP to Grafana Cloud; deploy on merge to main | Post-deploy smoke test | *explain it*: the deploy pipeline |
 
 🧪 Manual checks in Phase 2:
 - P2-05: scroll 500 roles on a mid-range Android; it must never go blank.
 - P2-08: undo each action within 5 s.
 - P2-11: a stopwatch from first open to feed must read under 60 s.
 - P2-13: receive a real digest; unsubscribe works in one click.
-- P2-16: open the production URL on mobile data.
+- P2-14: edit every preference on your phone; each save feels instant and survives a reload.
+- P2-15: change the theme and accent, then sign out everywhere from a second device.
+- P2-17: open the production URL on mobile data.
 
 ---
 
@@ -274,27 +280,27 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 
 | ID | Epic | Spec |
 | :-- | :-- | :-- |
-| E-01 | AI enrichment with evidence quotes and evals; eval gate in CI; budget guard | §T |
-| E-02 | Resume parsing → master profile (paid, no-training tier or deterministic; D-09) | §A3, §F |
-| E-03 | Scoring and learning from swipes; "why this matches" | §U |
-| E-04 | Web push and instant alerts; smart batching; delivery receipts | §D, §V |
-| E-05 | Application tracker | §E |
-| E-06 | Company pages, follow, request-a-company | §K |
-| E-07 | Mobile app (Expo) shell + feed + push | §1, §O |
-| E-08 | Security and DPDP pack: rate limits, bot protection, consent, breach plan | §Y |
-| E-09 | Growth: waitlist, invites, share cards | §M |
-| E-10 | Additional sign-in methods per SCP-01 | §A2 |
+| E-01 | AI enrichment with evidence quotes and evals; eval gate in CI; budget guard | T |
+| E-02 | Resume parsing → master profile (paid, no-training tier or deterministic; D-09) | A3, F |
+| E-03 | Scoring and learning from swipes; "why this matches" | U |
+| E-04 | Web push and instant alerts; smart batching; delivery receipts | D, V |
+| E-05 | Application tracker | E |
+| E-06 | Company pages, follow, request-a-company | K |
+| E-07 | Mobile app (Expo) shell + feed + push | 1, O |
+| E-08 | Security and DPDP pack: rate limits, bot protection, consent, breach plan | Y |
+| E-09 | Growth: waitlist, invites, share cards | M |
+| E-10 | Additional sign-in methods, only if users need them (SCP-01: decide later) | A2 |
 
 ## Phase 4 · Paid launch (epics)
 
 | ID | Epic | Spec |
 | :-- | :-- | :-- |
-| E-11 | Plans and Razorpay checkout, GST invoices | §L |
-| E-12 | Claim-checked drafts with streaming | §G |
-| E-13 | Follow-ups | §H |
-| E-14 | Referral finder (LinkedIn export import) | §I |
-| E-15 | Insights | §J |
-| E-16 | Terms of service and privacy policy (professional review) | §Y |
+| E-11 | Plans and Razorpay checkout, GST invoices | L |
+| E-12 | Claim-checked drafts with streaming | G |
+| E-13 | Follow-ups | H |
+| E-14 | Referral finder (LinkedIn export import) | I |
+| E-15 | Insights | J |
+| E-16 | Terms of service and privacy policy (professional review) | Y |
 
 ---
 
@@ -304,7 +310,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | :-- | :-- | :-- |
 | R-01 | Monthly | Dependency bumps: merge or close Dependabot PRs; `mise outdated` → bump pins in `mise.toml` + VERSIONS; re-verify free-tier facts |
 | R-02 | Each milestone | Phase grooming: split the next phase's epics into S/M items (docs-only PR); re-estimate the timeline |
-| R-03 | Monthly (from P2-16) | Free-tier usage review: Render hours, Grafana series, LLM spend, email quota |
+| R-03 | Monthly (from P2-17) | Free-tier usage review: Render hours, Grafana series, LLM spend, email quota |
 | R-04 | Weekly | LEARN review: overdue items in `docs/learning/SKILLS.md`; schedule re-implementations |
 
 ## Milestones and exit criteria
@@ -315,24 +321,24 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | **M1 · Data engine** (end of Phase 1) | 200 boards polled on schedule for 7 days; zero duplicate postings; detect-lag p50 within budget; board auto-pause verified |
 | **M2 · Personal MVP** (end of Phase 2) | The owner uses it daily for 2 weeks; every Phase 2 budget is met in production; cost ₹0 beyond the domain |
 | **M3 · Public beta** | 100 beta users; enrichment eval gate in CI; DPDP checklist complete with professional review |
-| **M4 · Paid launch** | Payments live; 50 paying users is the break-even target (SPEC §1) |
+| **M4 · Paid launch** | Payments live; 50 paying users is the break-even target (SPEC section 1) |
 
 ## Budgets
 
 | Budget | Target | Source |
 | :-- | :-- | :-- |
-| Tap acknowledgement | ≤ 100 ms (optimistic UI) | SPEC §4 |
-| Search end to end | < 200 ms | SPEC §4 |
-| Feed RPC p95 (server) | ≤ 150 ms at 100k postings | derived from SPEC §4 |
-| First feed after first open | < 60 s | SPEC §4 |
-| Posted → alert | busy < 20 min · normal < 70 min · quiet same day | SPEC §4 |
-| AI draft first token | ≤ 1.5 s | SPEC §4 |
+| Tap acknowledgement | ≤ 100 ms (optimistic UI) | SPEC section 4 |
+| Search end to end | < 200 ms | SPEC section 4 |
+| Feed RPC p95 (server) | ≤ 150 ms at 100k postings | derived from SPEC section 4 |
+| First feed after first open | < 60 s | SPEC section 4 |
+| Posted → alert | busy < 20 min · normal < 70 min · quiet same day | SPEC section 4 |
+| AI draft first token | ≤ 1.5 s | SPEC section 4 |
 | Web initial JS | ≤ 170 KB gzip | our target; revisit at P0-03 |
 | Docker image | ≤ 30 MB | our target |
 | API / worker memory | ≤ 256 MB RSS each | our target; fits small free-tier instances |
-| Fetch politeness | ≤ 1 req/s per host by default; honour crawl-delay | SPEC §Q |
-| Monthly cost through M2 | ₹0 beyond the domain | SPEC §3 (free tiers first) |
-| LLM spend (beta) | daily cap; decide the amount in E-01 | SPEC §T budget guard |
+| Fetch politeness | ≤ 1 req/s per host by default; honour crawl-delay | SPEC section Q |
+| Monthly cost through M2 | ₹0 beyond the domain | SPEC section 3 (free tiers first) |
+| LLM spend (beta) | daily cap; decide the amount in E-01 | SPEC section T budget guard |
 
 ## Top risks
 
@@ -340,7 +346,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | :-- | :-- | :-- |
 | Scope creep: 26 feature areas for one person | Never ships | MVP is strictly Phase 1–2; epics split only at milestones; push back on additions |
 | Job-board terms or format changes | Data gaps, legal exposure | Documented public APIs only; terms recorded per provider in LEGAL; fixtures; auto-pause |
-| Free-tier limits (DB expiry, sleep, series caps) | Outages, data loss | D-04 resolved before P2-16; backups from day one of deploy; R-03 monthly review |
+| Free-tier limits (DB expiry, sleep, series caps) | Outages, data loss | D-04 resolved before P2-17; backups from day one of deploy; R-03 monthly review |
 | Privacy (DPDP), resumes, LLM data use | Legal and trust damage | Public postings only to the LLM until a paid no-training tier exists; encryption at rest; professional review at M3 |
 | Go learning curve slows delivery | Timeline slip | LEARN exercises target exactly the hard parts; the mentor subagent; skip hatch |
 | Notification noise | Churn | Batching, caps and quiet hours are MVP, not later |
@@ -352,11 +358,11 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | D-01 | API style: Connect RPC + Protobuf | **decided** 2026-10-27 · [ADR-0002](adr/0002-connect-rpc-protobuf-contracts.md) | — | — |
 | D-02 | Toolchain: Task + mise + lefthook + Biome + golangci-lint | **decided** · [ADR-0001](adr/0001-toolchain-and-repo-automation.md) | — | — |
 | D-03 | Modular monolith, one image, many modes | **decided** · [ADR-0003](adr/0003-modular-monolith-one-image.md) | — | — |
-| D-04 | Production Postgres host (Render's free DB expires after 30 days) | open | A paid Render basic DB or another free Postgres host; compare at P2-16 | P2-16 |
+| D-04 | Production Postgres host (Render's free DB expires after 30 days) | open | A paid Render basic DB or another free Postgres host; compare at P2-17 | P2-17 |
 | D-05 | Email provider for digests (free tier, India deliverability) | open | Choose from 2–3 providers with free tiers in the P2-13 design step | P2-13 |
-| D-06 | Sign-in methods at launch | open (SCP-01) | Google only for MVP | P2-10 |
+| D-06 | Sign-in methods at launch | **decided** 2026-10-27 (SCP-01): Google only for MVP; other methods decided later, when needed | — | — |
 | D-07 | Migration tool (goose vs tern vs Atlas) | open | goose | P0-04 |
-| D-08 | Keka / Darwinbox / Zoho Recruit public feeds and terms | open (SPEC §8) | Excluded until verified | Phase 3 connectors |
+| D-08 | Keka / Darwinbox / Zoho Recruit public feeds and terms | open (SPEC section 8) | Excluded until verified | Phase 3 connectors |
 | D-09 | Resume parsing: paid LLM tier vs deterministic parser | open | Paid, no-training tier only | E-02 |
 | D-10 | DB integration tests: testcontainers vs a CI service container | open | CI service container (works on GitHub Linux runners) | P0-04 |
 | D-11 | Licence: proprietary, all rights reserved | **decided** by the owner 2026-10-27 | — | — |
@@ -365,8 +371,9 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 
 | ID | Proposal | Replaces | Cost / risk | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| SCP-01 | MVP sign-in = **Google only**; Beta adds the email magic link with a 6-digit code; phone OTP moves to [Later] | §A2 (Google + magic link) and §8 ("Google primary, phone secondary") conflict | Phone OTP costs per SMS, and India requires sender registration for commercial SMS (UNVERIFIED: check TRAI DLT rules). The magic link needs an email provider (D-05). | **awaiting owner** |
-| SCP-02 | §3 Backend: replace "Standard REST Designs if REST chosen otherwise Connect RPC…" with "Connect RPC with Protobuf contracts…" | §3 wording | None: the owner chose Connect RPC on 2026-10-27; this only edits the text | **awaiting owner approval to edit SPEC** |
+| SCP-01 | MVP sign-in is **Google only**. Other methods (email link, phone) are decided later, only if users need them | A2 (Google + magic link) and section 8 ("Google primary, phone secondary") conflicted | Smallest auth surface; no SMS or email-provider cost for sign-in | **approved** by the owner 2026-10-27; SPEC A2 and section 8 updated |
+| SCP-02 | Section 3 Backend: replace "Standard REST Designs if REST chosen otherwise Connect RPC…" with "Connect RPC with Protobuf contracts…" | Section 3 wording | None: matches the owner's pick of Connect RPC | **approved** by the owner 2026-10-27; SPEC section 3 updated |
+| SCP-03 | Add a polished **Profile** section (identity, job preferences, user configuration) alongside Settings (notifications, theme, devices, privacy) | SPEC N "Profile and preferences" was a single bullet | One extra M item in Phase 2 (P2-14 Profile; Settings becomes P2-15) | **approved** by the owner 2026-10-27; SPEC N updated |
 
 ## Curriculum map
 
@@ -398,12 +405,13 @@ LEARN mode, standard intensity. Every area is practised for real at least once p
 | Design and architecture (interfaces, ADRs, data modelling, API versioning) | P0-04-1 ADR, P0-05 buf breaking ⭐ | P1-01-1 provenance ADR, P1-04 connector interface | P2-10-1 session design | E-01 LLM provider interface |
 | Reliability (idempotency, transactions, outbox) | — | P1-06-1 idempotency ⭐ | P2-13 outbox ⭐ | — |
 | Security (validation, authn/z, secrets, OWASP) | P0-02 secrets in env | P1-11-1 SSRF ⭐ | P2-09 XSS, P2-10 sessions ⭐ | E-08 |
-| Observability (logs, metrics, traces, SLOs) | P0-07-1 propagation ⭐ | P1-13 dashboards | P2-16 production SLOs | — |
+| Observability (logs, metrics, traces, SLOs) | P0-07-1 propagation ⭐ | P1-13 dashboards | P2-17 production SLOs | — |
 | LLM features with evals | — | — | — | E-01 precision/recall gate ⭐ |
-| Craft (review, git, CI/CD, docs, estimation) | P0-01-1 explain it | P1-04-1 review it | P2-16 explain it | R-02: the owner estimates before grooming |
+| Craft (review, git, CI/CD, docs, estimation) | P0-01-1 explain it | P1-04-1 review it | P2-17 explain it | R-02: the owner estimates before grooming |
 
 ## Status log
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-27 | Review feedback on #1: TS path alias foundation (ADR-0004); section sign banned; SPEC and scaffold kept local; SCP-01, SCP-02 and SCP-03 approved. |
 | 2026-10-27 | Kit generated. Mode: LEARN standard. API style: Connect RPC. P0-01 in review (#1); CI green on ubuntu and windows. |

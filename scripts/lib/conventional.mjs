@@ -1,6 +1,8 @@
 // Conventional Commits validation plus a ban on AI-attribution traces.
 // Used by the commit-msg git hook and by the Claude Code Bash guard.
 
+import { findBannedChars } from "./banned.mjs";
+
 export const TYPES = [
   "build",
   "chore",
@@ -83,6 +85,10 @@ export function validateCommitMessage(raw) {
 
   for (const line of findAiTraces(message)) {
     errors.push(`AI-attribution trace is not allowed in this repo: "${line.trim()}"`);
+  }
+
+  for (const hit of findBannedChars(message)) {
+    errors.push(`line ${hit.line}: "${hit.char}" (${hit.name}) is banned: ${hit.hint}`);
   }
 
   return { ok: errors.length === 0, errors };

@@ -28,7 +28,7 @@ Check every new dependency's licence when adding it. **Avoid AGPL libraries link
 ## 3. Data sources and job boards
 
 - Use only **documented public job-board APIs**, and only where the provider's terms allow it. Record each provider's terms URL, the date read and the relevant clauses here before writing its connector (P1-04, P1-05).
-- **Never:** scrape LinkedIn or Naukri, or automate any platform whose terms forbid it (SPEC §7).
+- **Never:** scrape LinkedIn or Naukri, or automate any platform whose terms forbid it (SPEC section 7).
 - Respect robots.txt and crawl delays, identify the client with a clear user agent, and rate-limit per host (P1-03).
 - Keka, Darwinbox, Zoho Recruit: excluded until their public feeds and terms are verified (D-08).
 - Postings are public data, but company names and logos are trademarks. Use names factually and don't imply endorsement.
@@ -42,9 +42,9 @@ Check every new dependency's licence when adding it. **Avoid AGPL libraries link
 
 Earlii will process personal data (accounts, resumes, preferences, application history). Engineering obligations to design for:
 
-- **Consent and notice:** clear purpose-specific consent at sign-up and for each new purpose (resume parsing, LinkedIn import). Consent records are stored (SPEC §N).
+- **Consent and notice:** clear purpose-specific consent at sign-up and for each new purpose (resume parsing, LinkedIn import). Consent records are stored (SPEC section N).
 - **Purpose limitation and minimisation:** collect only what a feature needs. Three fields per step is also a privacy feature.
-- **Data principal rights:** access/export (JSON), correction, and erasure (hard delete within 30 days, SPEC §N). Erasure must also cover backups within their rotation, logs (keep PII out entirely) and LLM provider retention.
+- **Data principal rights:** access/export (JSON), correction, and erasure (hard delete within 30 days, SPEC section N). Erasure must also cover backups within their rotation, logs (keep PII out entirely) and LLM provider retention.
 - **Security safeguards:** encryption at rest for documents, least-privilege access, audit logs.
 - **Breach plan:** detect, contain and notify within the Act's timelines (UNVERIFIED: confirm the current rules and timelines).
 - **Cross-border transfer:** hosting and LLM providers may process data outside India. Check the current DPDP rules on transfers before launch.
@@ -52,7 +52,7 @@ Earlii will process personal data (accounts, resumes, preferences, application h
 
 ## 5. LLMs and user data
 
-- **Never send resumes, drafts or other user data to a free LLM tier** (SPEC §7). Gemini's free tier may use content to improve Google's products; the paid tier doesn't (verified 2026-10-27, see VERSIONS).
+- **Never send resumes, drafts or other user data to a free LLM tier** (SPEC section 7). Gemini's free tier may use content to improve Google's products; the paid tier doesn't (verified 2026-10-27, see VERSIONS).
 - Public postings may go to any tier. Enrichment runs on public postings only.
 - Record the provider, tier and data-retention terms here before E-01 and E-02.
 
