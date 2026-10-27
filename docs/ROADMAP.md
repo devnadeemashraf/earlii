@@ -31,7 +31,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 **Goal:** the AI PR loop works end to end on an empty skeleton. That means CI is green, the hooks enforce the rules, and one request flows web → API → DB → job.
 
 ### P0-01 · Starter kit: docs, tooling, CI and AI harness
-- **Spec:** §Z [MVP] · **Size:** M · **Status:** in review
+- **Spec:** §Z [MVP] · **Size:** M · **Status:** in review (#1)
 - **Acceptance:**
   - every kit document exists;
   - `task doctor` and `task check` are green on Windows and Linux CI;
@@ -406,4 +406,4 @@ LEARN mode, standard intensity. Every area is practised for real at least once p
 
 | Date | Event |
 | :-- | :-- |
-| 2026-10-27 | Kit generated. Mode: LEARN standard. API style: Connect RPC. P0-01 in review. |
+| 2026-10-27 | Kit generated. Mode: LEARN standard. API style: Connect RPC. P0-01 in review (#1); CI green on ubuntu and windows. |

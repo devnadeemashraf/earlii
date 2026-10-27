@@ -5,7 +5,7 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **LEARN standard** (switched 2026-10-27).
-- `main` holds README + LICENSE. PR for **P0-01** (starter kit) is open on `chore/P0-01-starter-kit`.
+- `main` holds README + LICENSE. PR **#1** (P0-01 starter kit) is open and CI is green: ubuntu 20 s, windows 1 m 21 s, handoff 4 s.
 - Works now: `task doctor`, `task check` (lint + script tests), git hooks (format, Conventional Commits, no AI trailers, no push to main), Claude Code hooks, skills and subagents, CI (Linux + Windows) and the handoff check.
 - No product code yet. Go, web and DB tasks print `skip:` until P0-02, P0-03 and P0-04.
 
@@ -49,5 +49,5 @@ _(empty)_
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
-| (open) | P0-01 | Starter kit: docs, tooling, CI, hooks, AI harness, tooling research | yes: ROADMAP P0-01 🧪 |
+| #1 | P0-01 | Starter kit: docs, tooling, CI, hooks, AI harness, tooling research | yes: ROADMAP P0-01 🧪 |
 | — | — | Initial commit: README + LICENSE (on main) | no |

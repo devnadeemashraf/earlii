@@ -67,7 +67,7 @@ Interview-ready write-ups of real decisions in this codebase. One entry per nota
 
 **Skipped just** because shell differences would force per-OS recipes.
 
-**Result:** CI runs the same `task check` on `ubuntu-latest` and `windows-latest` (see the PR checks). The local run takes 2.1 s. No per-OS speed comparison was measured, because portability, not speed, was the goal.
+**Result:** CI runs the same `task doctor` + `task check` on both OSes. Both were green on the first run of PR #1: ubuntu-latest 20 s, windows-latest 1 m 21 s (job durations from `gh pr checks 1`). The local run takes 2.1 s. No per-OS speed comparison was measured, because portability, not speed, was the goal.
 
 **Soundbite:** "I develop on Windows but deploy on Linux, so I chose a task runner with an embedded POSIX shell and made CI run the identical check on both OSes. Tooling drift became a CI failure instead of a surprise."
 
