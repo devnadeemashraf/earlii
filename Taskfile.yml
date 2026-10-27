@@ -142,7 +142,7 @@ tasks:
         fi
 
   dev:web:
-    desc: Run the web app on localhost:5173 (proxies /readyz to the API on :8080)
+    desc: Run the web app on localhost:5173 (proxies /readyz to the API on 127.0.0.1:8080)
     cmds:
       - pnpm --filter ./apps/web dev
 
@@ -152,10 +152,12 @@ tasks:
       - pnpm --filter ./apps/web dev --host
 
   dev:api:
-    desc: Run the API locally on :8080 (Ctrl-C drains and stops it)
+    desc: Run the API locally on 127.0.0.1:8080, loopback only (Ctrl-C drains and stops it)
     dir: backend
     env:
       EARLII_ENV: dev
+      # Loopback only (BP-001): the web dev proxy reaches it, nobody else on the Wi-Fi does.
+      EARLII_HTTP_ADDR: 127.0.0.1:8080
       EARLII_LOG_LEVEL: debug
     cmds:
       - go run ./cmd/earlii api

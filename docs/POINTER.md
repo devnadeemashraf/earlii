@@ -5,9 +5,9 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **build** (switched 2026-10-27): the AI builds every item; each PR gets a private study guide (AGENTS.md section 5).
-- P0-01 (#1) and P0-02 (#2) are merged. **P0-03 (web skeleton) is in review as #3** on `feat/P0-03-web-skeleton`.
+- P0-01 (#1), P0-02 (#2) and P0-03 (#3) are merged. **BP-001 (dev API on loopback) is in review as #4** on `fix/BP-001-dev-api-loopback`.
 - Works now:
-  - Go: `earlii api|worker|scheduler`, env config, JSON `slog`, `/healthz` + `/readyz`, graceful drain, `task dev:api`;
+  - Go: `earlii api|worker|scheduler`, env config, JSON `slog`, `/healthz` + `/readyz`, graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
   - web: `apps/web` (Vite 8, React 19, TanStack Router file routes + Query, Tailwind 4, shadcn/ui); `/` shows an inline HTML skeleton, then the API status from `/readyz` (via the dev proxy), with not-found and error states with retry;
   - a PWA manifest with SVG, 192/512, maskable and Apple icons (rendered by `scripts/render-icons.mjs`); no service worker yet;
   - `task dev:web` (localhost) and `task dev:web:lan` (phone); the dev server is locked down (fs allow/deny, Host check, one proxied path);
@@ -16,11 +16,11 @@
 
 ## FIX-FIRST QUEUE
 
-- **BP-001 · `task dev:api` listens on every interface.** `defaultHTTPAddr = ":8080"` (`backend/internal/config/config.go:37`), and `dev:api` in `Taskfile.yml` doesn't override it, so anyone on the same Wi-Fi can reach the dev API directly. Today it only serves the probes, but every handler added later is exposed too. The web dev proxy targets `127.0.0.1:8080`, so the fix is `EARLII_HTTP_ADDR: 127.0.0.1:8080` in `dev:api`'s env, plus a HANDBOOK note. Keep the `:8080` default: containers need all interfaces (P0-06). Found by the P0-03 red-team.
+_Empty._ BP-001 is fixed in #4.
 
 ## NEXT UP
 
-**P0-04 · Local stack, migrations, sqlc** (ROADMAP section Phase 0), once the FIX-FIRST QUEUE is empty.
+**P0-04 · Local stack, migrations, sqlc** (ROADMAP section Phase 0), once #4 is merged.
 
 - **Why now:** P0-05's Health RPC and everything in Phase 1 need Postgres and River. P0-04 also turns `/readyz` into a real check.
 - **Start at:** decide D-07 (migration tool; working assumption goose) and D-10 (DB integration tests; working assumption a CI service container) in the design step, with ADRs. Re-verify the candidates in VERSIONS (River was released the same day it was checked).
@@ -48,18 +48,20 @@
 - Web: `routeTree.gen.ts` is regenerated whenever Vite or Vitest runs. Commit it with any route change (`build:web` fails if it's stale). Don't put non-route files in `src/routes/`. Vitest's jsdom AbortSignal isn't accepted by Node's fetch: test fetch code with `// @vitest-environment node`.
 - shadcn CLI 4.23.0: `init` hangs on a preset prompt without `--preset`, and swaps `cn()` to a third-party package. Use `add` only, and review what it copies (HANDBOOK section 11).
 - Tests must never depend on the gitignored private files (SPEC, `docs/learning/`): CI has none, and a missing file can pass or fail for the wrong reason (P0-03 CI run 1). Plant look-alike fixtures instead, as `apps/web/src/dev-server.test.ts` does.
+- Windows lets a second process bind `127.0.0.1:8080` while another holds `0.0.0.0:8080`, so a stale `task dev:api` keeps serving the Wi-Fi with no "address in use" error. Check `netstat -ano | grep :8080` before trusting a bind.
 - In Node scripts, `String.replace(a, b)` treats `` $` ``, `$'` and `$&` in `b` as patterns, which bites when `b` is Markdown with backticks. Pass `() => b`.
 
 ## Learning
 
 - **Private study guides** live in `docs/learning/` (gitignored: never `git add` it; the Bash guard denies it). Index and progress: `docs/learning/README.md`.
-- **Latest:** P0-03 (web skeleton), P0-02 (Go skeleton), P0-01 (starter kit). Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README.
+- **Latest:** BP-001 (dev API on loopback), P0-03 (web skeleton), P0-02 (Go skeleton), P0-01 (starter kit). Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README.
 - **Next guide:** P0-04, written in that PR after `/handoff`.
 
 ## Recent history
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
+| #4 | BP-001 | `task dev:api` binds `127.0.0.1:8080` only; a test keeps it equal to the web dev proxy target | yes: `task dev:api`, curl `127.0.0.1:8080/readyz` (200) and `<LAN IP>:8080/readyz` (refused) |
 | #3 | P0-03 | Web skeleton: Vite/React/TanStack/Tailwind/shadcn, skeleton then content, PWA manifest, locked-down dev server, bundle gate | yes: `task dev:api` + `task dev:web:lan`, open on a phone |
 | #2 | P0-02 | Go skeleton: modes, env config, JSON logs, health probes, hardened server, graceful drain; switch to build mode | yes: `task dev:api`, curl the probes, Ctrl-C |
 | #1 | P0-01 | Starter kit: docs, tooling, CI, hooks, AI harness, tooling research | yes: ROADMAP P0-01 🧪 |

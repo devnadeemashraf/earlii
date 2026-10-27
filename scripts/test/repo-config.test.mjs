@@ -113,3 +113,57 @@ describe("POINTER.md", () => {
     }
   });
 });
+
+// Taskfile.yml has no YAML parser in reach, so read one task's env block by indentation:
+// the task key sits at 2 spaces, `env:` at 4 and its entries at 6. It assumes 2-space
+// indents, and a column-0 line (even a comment) inside a task ends the block early.
+function taskEnv(taskfile, name) {
+  const lines = taskfile.split(/\r?\n/);
+  const start = lines.indexOf(`  ${name}:`);
+  if (start < 0) return null;
+  const env = {};
+  let inEnv = false;
+  for (const line of lines.slice(start + 1)) {
+    if (/^ {0,2}\S/.test(line)) break;
+    if (/^ {4}\S/.test(line)) inEnv = line.trim() === "env:";
+    const m = inEnv && /^ {6}([A-Z0-9_]+):\s*(.*?)\s*$/.exec(line);
+    if (m) env[m[1]] = m[2].replace(/^(["'])(.*)\1$/, "$2");
+  }
+  return env;
+}
+
+describe("Taskfile.yml dev:api (BP-001)", () => {
+  const env = taskEnv(read("Taskfile.yml"), "dev:api");
+
+  it("exists and sets an env block", () => assert.ok(env && Object.keys(env).length > 0));
+
+  it("binds the dev API to loopback, so nobody on the Wi-Fi can reach it", () => {
+    assert.match(env?.EARLII_HTTP_ADDR ?? "", /^(127\.0\.0\.1|localhost|\[::1\]):\d+$/);
+  });
+
+  it("never binds every interface (empty host, 0.0.0.0 or [::])", () => {
+    assert.doesNotMatch(env?.EARLII_HTTP_ADDR ?? ":", /^(:|0\.0\.0\.0:|\[::\]:)/);
+  });
+
+  it("listens where the web dev proxy points", () => {
+    const target = /const apiTarget = "http:\/\/([^"]+)";/.exec(read("apps/web/vite.config.ts"));
+    assert.ok(target, "apiTarget not found in apps/web/vite.config.ts");
+    assert.equal(env?.EARLII_HTTP_ADDR, target[1]);
+  });
+
+  it("the parser reads quoted values and stops at the next task", () => {
+    const fixture = [
+      "tasks:",
+      "  a:",
+      "    env:",
+      '      X: "1"',
+      "    cmds:",
+      "      - Y: 2",
+      "  b:",
+      "    env:",
+      "      Z: 3",
+    ].join("\n");
+    assert.deepEqual(taskEnv(fixture, "a"), { X: "1" });
+    assert.equal(taskEnv(fixture, "missing"), null);
+  });
+});
