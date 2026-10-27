@@ -1,0 +1,15 @@
+# Normalise line endings: LF in the repo and in the working tree.
+* text=auto eol=lf
+
+*.{ps1,cmd,bat} text eol=crlf
+
+# Binary assets
+*.{png,jpg,jpeg,gif,webp,ico,pdf,woff,woff2,ttf,otf} binary
+
+# Generated or vendored: collapsed in diffs, excluded from language stats.
+pnpm-lock.yaml linguist-generated=true -diff
+go.sum         linguist-generated=true -diff
+**/gen/**      linguist-generated=true
+*.pb.go        linguist-generated=true
+*_pb.ts        linguist-generated=true
+*.gen.ts       linguist-generated=true

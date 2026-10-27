@@ -1,0 +1,28 @@
+# Git hooks (https://lefthook.dev). Installed by `task setup` (or `lefthook install`).
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: "*.{js,mjs,cjs,ts,tsx,jsx,json,jsonc,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+    - name: go-fmt
+      glob: "*.go"
+      run: golangci-lint fmt {staged_files}
+      stage_fixed: true
+    - name: gitleaks
+      run: gitleaks git --pre-commit --staged --no-banner --redact
+    - name: banned-chars
+      run: node scripts/check-text.mjs {staged_files}
+
+commit-msg:
+  jobs:
+    - name: conventional-commit
+      run: node scripts/commit-msg.mjs {1}
+
+pre-push:
+  jobs:
+    - name: no-push-to-main
+      run: node scripts/pre-push-guard.mjs
+      use_stdin: true
