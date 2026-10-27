@@ -114,3 +114,32 @@ claude
 | `lefthook` hooks don't run | `lefthook install`, then check `.git/hooks/pre-commit` mentions lefthook |
 | A Claude hook error mentions `node` | Make sure `node` is on `PATH` in Git Bash (`which node`); activating mise in `~/.bashrc` helps: `eval "$(mise activate bash)"` |
 | Commit rejected by commit-msg | Use `<type>(<scope>): <subject>` (at most 72 characters) and remove any AI trailer |
+
+## Purging leaked files
+
+If a private or sensitive file (for example `docs/SPEC.md`) ever reaches a pushed commit:
+
+1. **Rotate any secret first.** A rewrite never makes a leaked credential safe again.
+2. **Rewrite the affected branch** (an agent may prepare this):
+   ```bash
+   git branch backup/pre-purge HEAD
+   FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --index-filter \
+     'git rm -q --cached --ignore-unmatch <path>' -- origin/main..HEAD
+   ```
+   Then verify that no rewritten commit contains the path, and that the final tree is otherwise unchanged.
+3. **Force-push. Only the owner does this;** the agent guards block it:
+   `git push --force-with-lease=<branch>:<old-remote-sha> origin <branch>`
+4. **Ask GitHub Support to purge the server side.** Old commits stay reachable by SHA in cached views and through pull requests. Open a ticket at https://support.github.com and give:
+   - the owner and repo;
+   - the number of affected PRs;
+   - the first changed commit(s).
+
+   Support dereferences the PRs, runs garbage collection and removes cached views. ([GitHub docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository))
+5. **Clean up locally:**
+   ```bash
+   git branch -D backup/pre-purge
+   git update-ref -d refs/original/refs/heads/<branch>
+   git reflog expire --expire=now --all
+   git gc --prune=now
+   ```
+6. **Other clones** must re-clone, or rebase (never merge) any branches cut from the old history.
