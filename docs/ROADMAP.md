@@ -414,6 +414,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-28 | P0-04 merged (#5). BP-002 in review: `lint:migrations` read main's files trimmed, so every PR and main itself failed `task check`; it now reads exact bytes. P0-05 in progress, stacked on it. |
 | 2026-10-28 | BP-001 merged (#4). P0-04 in review (#5): compose stack, `earlii migrate` (River + goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, DB integration tests in CI. D-07 and D-10 decided (ADR-0005). Starting River's client moved to P0-07, which needs it. |
 | 2026-10-27 | P0-03 merged (#3). BP-001 in review (#4): `task dev:api` binds `127.0.0.1:8080` only. |
 | 2026-10-27 | P0-02 merged (#2). P0-03 in review (#3): web skeleton, PWA manifest, the bundle budget gate. |

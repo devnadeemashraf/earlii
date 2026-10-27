@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { git, mergeBase, resolveRef } from "./lib/git.mjs";
+import { git, mergeBase, resolveRef, showFile } from "./lib/git.mjs";
 import { checkMigrations } from "./lib/migrations.mjs";
 
 const DIR = "backend/internal/postgres/migrations";
@@ -27,7 +27,14 @@ const base = new Map();
 if (sha) {
   const listed = git(["ls-tree", "--name-only", `${sha}:${DIR}`], { cwd: root });
   for (const f of listed.ok ? listed.stdout.split(/\r?\n/).filter(Boolean) : []) {
-    base.set(f, git(["show", `${sha}:${DIR}/${f}`], { cwd: root }).stdout);
+    // Exact bytes: git() trims, which would make every file on main look edited (BP-002).
+    const content = showFile(sha, `${DIR}/${f}`, root);
+    if (content === null) {
+      // Never guess: an unreadable file must not read as an edit (or as unchanged).
+      console.error(`migrations: cannot read ${f} at ${sha}`);
+      process.exit(2);
+    }
+    base.set(f, content);
   }
 } else {
   console.log(`note: no base ref (${requested.join(", ")}); checking names and annotations only`);
