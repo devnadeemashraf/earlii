@@ -1,0 +1,16 @@
+{
+  "name": "earlii",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=24.22.1"
+  },
+  "scripts": {
+    "check": "task check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3"
+  }
+}

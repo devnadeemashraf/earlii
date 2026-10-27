@@ -1,0 +1,15 @@
+# Single source of truth for tool versions, used locally and in CI.
+# Every pin is recorded with its date and source in docs/VERSIONS.md.
+# `task doctor` fails if what's on PATH doesn't match these.
+
+[tools]
+go = "1.27.3"
+node = "24.22.1"
+pnpm = "12.15.0"
+task = "3.54.0"
+lefthook = "2.2.2"
+golangci-lint = "2.15.0"
+gitleaks = "8.30.1"
+actionlint = "1.7.12"
+zizmor = "1.31.1"
+"go:golang.org/x/tools/gopls" = "0.24.0"

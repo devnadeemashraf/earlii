@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+dist/
+build/
+bin/
+coverage/
+*.test
+*.out
+*.prof
+*.pprof
+
+# Environment and secrets (an example file is committed as .env.example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Caches
+.turbo/
+.vite/
+.cache/
+*.tsbuildinfo
+.eslintcache
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# Local AI tooling state
+.claude/settings.local.json
+CLAUDE.local.md
+.serena/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

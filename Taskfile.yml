@@ -1,0 +1,121 @@
+# Task runner (https://taskfile.dev). Task's built-in shell works the same on Windows, macOS and Linux.
+# Run `task --list` to see everything. `task check` is exactly what CI runs.
+version: "3"
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - task --list
+
+  setup:
+    desc: Install pinned tools, dependencies and git hooks, then run doctor
+    cmds:
+      - mise install
+      - pnpm install
+      - lefthook install
+      - task: doctor
+
+  doctor:
+    desc: Check every tool against the pins in mise.toml
+    cmds:
+      - node scripts/doctor.mjs
+
+  check:
+    desc: Everything CI runs (lint, then tests)
+    cmds:
+      - task: lint
+      - task: test
+
+  fmt:
+    desc: Format all code
+    cmds:
+      - pnpm exec biome check --write .
+      - task: fmt:go
+
+  fmt:go:
+    desc: Format Go code (gofumpt + goimports via golangci-lint)
+    cmds:
+      - |
+        if [ -f go.work ]; then
+          for d in $(go list -m -f '{{"{{"}}.Dir{{"}}"}}'); do (cd "$d" && golangci-lint fmt); done
+        else
+          echo "skip: no Go modules yet (P0-02)"
+        fi
+
+  lint:
+    desc: All linters
+    cmds:
+      - task: lint:ts
+      - task: lint:go
+      - task: lint:actions
+      - task: lint:secrets
+
+  lint:ts:
+    desc: Biome format + lint + import order check (read-only)
+    cmds:
+      - pnpm exec biome ci .
+
+  lint:go:
+    desc: golangci-lint (includes formatter checks)
+    cmds:
+      - golangci-lint config verify
+      - |
+        if [ -f go.work ]; then
+          for d in $(go list -m -f '{{"{{"}}.Dir{{"}}"}}'); do (cd "$d" && golangci-lint run ./...); done
+        else
+          echo "skip: no Go modules yet (P0-02)"
+        fi
+
+  lint:actions:
+    desc: Lint GitHub Actions workflows for errors (actionlint) and security issues (zizmor)
+    cmds:
+      - actionlint
+      - zizmor --offline .github/workflows
+
+  lint:secrets:
+    desc: Scan git history for committed secrets
+    cmds:
+      - gitleaks git --no-banner --redact
+
+  test:
+    desc: All tests
+    cmds:
+      - task: test:scripts
+      - task: test:go
+      - task: test:web
+
+  test:scripts:
+    desc: Tests for repo scripts and hooks (node:test)
+    cmds:
+      - node --test "scripts/test/*.test.mjs"
+
+  test:go:
+    desc: Go tests
+    cmds:
+      - |
+        if [ -f go.work ]; then
+          for d in $(go list -m -f '{{"{{"}}.Dir{{"}}"}}'); do (cd "$d" && go test ./...); done
+        else
+          echo "skip: no Go modules yet (P0-02)"
+        fi
+
+  test:web:
+    desc: Web tests
+    cmds:
+      - |
+        if [ -d apps/web ]; then
+          pnpm --filter ./apps/web test
+        else
+          echo "skip: no web app yet (P0-03)"
+        fi
+
+  handoff:
+    desc: Code changed => POINTER changed; new module => HANDBOOK changed
+    cmds:
+      - node scripts/handoff-check.mjs
+
+  hooks:
+    desc: (Re)install git hooks
+    cmds:
+      - lefthook install

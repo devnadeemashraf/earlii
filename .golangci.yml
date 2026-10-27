@@ -1,0 +1,58 @@
+# golangci-lint v2 configuration. Verify with: golangci-lint config verify
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - errorlint
+    - exhaustive
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - prealloc
+    - revive
+    - sloglint
+    - sqlclosecheck
+    - unconvert
+    - unparam
+    - wrapcheck
+  settings:
+    sloglint:
+      attr-only: true
+      context: scope
+    wrapcheck:
+      ignore-sig-regexps:
+        - \.Errorf\(
+        - errors\.New\(
+        - errors\.Join\(
+        - connect\.NewError\(
+  exclusions:
+    generated: strict
+    paths:
+      - ".*/gen/.*"
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - wrapcheck
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/devnadeemashraf/earlii
+  exclusions:
+    generated: strict
+    paths:
+      - ".*/gen/.*"
