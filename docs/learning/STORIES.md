@@ -153,6 +153,8 @@ Interview-ready write-ups of real decisions in this codebase. One entry per nota
 
 **Migration:** a context-aware rewrite instead of a blind delete. "SPEC" plus the sign plus a number became "SPEC section 4". In labelled Spec fields, the sign was simply dropped ("Spec: Q"). The ambiguous leftovers were then reviewed by hand.
 
+**Caught by the rule itself:** the formatter rewrote the unicode escape in the rule's own source into the literal character. The full-repo test had passed only because the new files weren't tracked yet. The pre-commit hook blocked the commit, and the fix builds the character with `String.fromCodePoint(0xa7)`.
+
 **Result:**
 - 0 occurrences in tracked files (`node scripts/check-text.mjs`);
 - the rule is covered by `scripts/test/banned.test.mjs`.

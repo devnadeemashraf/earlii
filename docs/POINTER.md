@@ -43,6 +43,7 @@ _(empty)_
 - Dependabot's support for pnpm 12 lockfiles is UNVERIFIED. If its npm PRs fail, see R-01.
 - `docs/SPEC.md` and `docs/project-scaffold-claude.md` are gitignored (private and local-only). Fresh clones and CI don't have SPEC.
 - TS aliases: copy `scripts/test/fixtures/ts-alias/` (tsconfig `paths` + `resolve.tsconfigPaths`). Biome rejects `../` only under `apps/**/src` and `packages/**/src`.
+- Biome rewrites unicode escapes in JS strings into literal characters. To refer to a banned character in code, use `String.fromCodePoint(0xa7)`.
 - Biome's stdin mode exits 1 whenever it would change anything, so test lint rules on real files (see `ts-alias.test.mjs`).
 
 ## Learning
