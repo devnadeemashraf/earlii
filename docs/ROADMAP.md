@@ -31,7 +31,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 **Goal:** the AI PR loop works end to end on an empty skeleton. That means CI is green, the hooks enforce the rules, and one request flows web → API → DB → job.
 
 ### P0-01 · Starter kit: docs, tooling, CI and AI harness
-- **Spec:** Z [MVP] · **Size:** M · **Status:** in review (#1)
+- **Spec:** Z [MVP] · **Size:** M · **Status:** done (#1)
 - **Acceptance:**
   - every kit document exists;
   - `task doctor` and `task check` are green on Windows and Linux CI;
@@ -45,7 +45,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **LEARN:** P0-01-1 *explain it*: how the guards turn policy into enforcement.
 
 ### P0-02 · Go skeleton: one binary, many modes
-- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** todo
+- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** in review (#2). The drain criterion completes with exercise P0-02-1.
 - **Acceptance:**
   - `go.work` plus the `backend/` module;
   - `earlii api|worker|scheduler`;
@@ -413,5 +413,6 @@ LEARN mode, standard intensity. Every area is practised for real at least once p
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-27 | P0-01 merged (#1). P0-02 in review (#2): Go skeleton, config, probes, modes; the graceful drain is exercise P0-02-1 (stub + skipped tests). |
 | 2026-10-27 | Review feedback on #1: TS path alias foundation (ADR-0004); section sign banned; SPEC and scaffold kept local; SCP-01, SCP-02 and SCP-03 approved. |
 | 2026-10-27 | Kit generated. Mode: LEARN standard. API style: Connect RPC. P0-01 in review (#1); CI green on ubuntu and windows. |

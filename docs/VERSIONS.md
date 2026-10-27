@@ -29,10 +29,18 @@ Every version and external fact the project relies on, with the date it was veri
 | actions/checkout | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` | 2026-10-27 via `gh api repos/actions/checkout/git/ref/tags/v7.0.1` |
 | jdx/mise-action | v5.2.3 | `82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e` | 2026-10-27 via `gh api repos/jdx/mise-action/git/ref/tags/v5.2.3` |
 
+## Pinned Go modules (`backend/go.mod`)
+
+| Module | Version | Verified | Source |
+| :-- | :-- | :-- | :-- |
+| Go directive | 1.27.3 (matches `mise.toml`) | 2026-10-27 | `go mod init` with the pinned toolchain |
+| _(no third-party modules yet: the standard library covers P0-02)_ | | | |
+
 ## Candidate versions (verified latest; pin when the item starts)
 
 | Package | Latest | For | Verified | Source |
 | :-- | :-- | :-- | :-- | :-- |
+| golang.org/x/sync (errgroup) | v0.24.0 | P0-02-1 exercise (the owner adds it with `go get`) | 2026-10-27 | `go list -m -json golang.org/x/sync@latest` (published 2026-09-23); verified against the exercise tests |
 | buf | 1.75.0 | P0-05 | 2026-10-27 | `mise latest buf`; GitHub releases |
 | connect-go | v2.0.2 (`connectrpc.com/connect/v2`) | P0-05 | 2026-10-27 | `go list -m connectrpc.com/connect/v2@latest`. Note: v1 is still `connectrpc.com/connect` v1.21.1. Pick deliberately |
 | google.golang.org/protobuf | v1.36.12 | P0-05 | 2026-10-27 | Go module proxy |
@@ -76,6 +84,14 @@ Every version and external fact the project relies on, with the date it was veri
 | Biome 2.6: `linter.rules.recommended` is deprecated in favour of `linter.rules.preset` | 2026-10-27 | Biome deprecation diagnostic; `configuration_schema.json` |
 | Vite 8 resolves tsconfig `paths` natively with `resolve.tsconfigPaths: true` (default `false`); no plugin needed | 2026-10-27 | `node_modules/vite/dist/node/index.d.ts` (`ResolveOptions.tsconfigPaths`); proven by `scripts/test/ts-alias.test.mjs` |
 | Biome 2.6 `style/noRestrictedImports` supports gitignore-style `patterns` (used to ban `../` imports) | 2026-10-27 | `configuration_schema.json` (`PatternOptions.group`); proven by `scripts/test/ts-alias.test.mjs` |
+| `docker stop` waits **10 s** after SIGTERM before SIGKILL on Linux containers (the daemon sets the default); hence `EARLII_SHUTDOWN_TIMEOUT` is at most 9 s | 2026-10-27 | https://docs.docker.com/reference/cli/docker/container/stop/ |
+| Render web services: `PORT` defaults to **10000**; the server must bind host `0.0.0.0` | 2026-10-27 | https://render.com/docs/web-services |
+| Render deploys send SIGTERM and wait **30 s** by default (up to 300 s, `maxShutdownDelaySeconds`; not customisable with a persistent disk) before SIGKILL | 2026-10-27 | https://render.com/docs/deploys |
+| Go on Windows: with `signal.Notify`, CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT and CTRL_SHUTDOWN_EVENT arrive as `syscall.SIGTERM`; Ctrl-C arrives as `os.Interrupt` | 2026-10-27 | `go doc os/signal` (Go 1.27.3) |
+| `signal.NotifyContext`: `context.Cause` on the returned context describes the signal | 2026-10-27 | `go doc os/signal.NotifyContext` (Go 1.27.3) |
+| `http.Server.Shutdown` closes listeners, then idle connections, then waits for active ones until its ctx expires; `Close` cuts all non-hijacked connections at once | 2026-10-27 | `go doc net/http.Server.Shutdown`, `go doc net/http.Server.Close` (Go 1.27.3) |
+| The Go race detector needs cgo; this Windows dev box has `CGO_ENABLED=0` (no gcc), so `task test:go` adds `-race` only when cgo is on | 2026-10-27 | `go env CGO_ENABLED` locally |
+| gitleaks 8.30.1 `generic-api-key` flags a line holding the word `api` and a `KEY=value` string literal on the same line. Split the line rather than allow-listing | 2026-10-27 | `gitleaks git --staged -v` locally |
 
 ## UNVERIFIED (check before relying on them)
 
@@ -83,6 +99,7 @@ Every version and external fact the project relies on, with the date it was veri
 | :-- | :-- |
 | Grafana Cloud free tier: ~10k active metric series, 50 GB logs/traces, 14-day retention (secondary sources only) | https://grafana.com/pricing, at P0-07 / P2-17 |
 | India commercial SMS requires TRAI DLT sender/template registration (affects SCP-01 phone OTP) | TRAI / SMS-provider documentation, before any phone-OTP work |
+| `-race` works on the `windows-latest` CI runner (cgo depends on gcc being on PATH there) | The `check (windows-latest)` job log of the P0-02 PR: look for the "cgo is off" note |
 | Dependabot supports pnpm 12 lockfiles | Watch the first monthly Dependabot run; see the Insights → Dependency graph → Dependabot tab |
 | Greenhouse Job Board API and Lever Postings API: public access and terms allow polling | The official API docs and terms, recorded in LEGAL.md at P1-04 / P1-05 |
 | Keka, Darwinbox, Zoho Recruit public careers feeds and terms (SPEC section 8) | Provider docs and terms (D-08) |

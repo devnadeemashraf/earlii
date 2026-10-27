@@ -33,7 +33,7 @@ The self-assessment baseline (2026-10-27) assumes strong TS/React and new to Go.
 | Reliability (idempotency, transactions, outbox) | 1 | — | — | P1-06 |
 | Security (validation, authn/z, SSRF, XSS, secrets) | 1 | — | — | P1-11 |
 | Observability (logs, metrics, traces) | 1 | — | — | P0-07 |
-| Concurrency (goroutines, context, errgroup, locks vs channels, races) | 0 | — | — | P0-02 |
+| Concurrency (goroutines, context, errgroup, locks vs channels, races) | 0 | P0-02-1 open | — | P0-02-1 grading |
 | Networking and OS (HTTP semantics, signals, containers) | 1 | — | — | P0-02 |
 | LLM features with evals | 0 | — | — | E-01 |
 | Craft (review, git workflows, CI/CD, docs, estimation) | 2 | — | — | P0-01 |
@@ -43,5 +43,6 @@ The self-assessment baseline (2026-10-27) assumes strong TS/React and new to Go.
 | Exercise | Type | Status | Score (C/Cx/T/R/P/S/I) | Attempts | Re-implement on |
 | :-- | :-- | :-- | :-- | :-: | :-- |
 | P0-01-1 explain the PR guards | explain it | open | — | 0 | — |
+| P0-02-1 graceful shutdown (`httpserver.Serve`) | implement | open | — | 0 | — |
 
 The score columns are: correctness, complexity, tests, readability, performance, security and idiomatic use.

@@ -185,3 +185,68 @@ Interview-ready write-ups of real decisions in this codebase. One entry per nota
 - 166 tests pass.
 
 **Soundbite:** "I nearly leaked a private spec: `.gitignore` doesn't untrack a file that's already tracked, and I'd re-staged it by accident. I caught it by diffing the tree before and after a history rewrite, purged it from every commit, then made it impossible to repeat with a test and a guard. The lesson I took away: verify the end state, don't assume the steps worked."
+
+---
+
+## S-007 · Fail-fast config that can't crash-loop a rollback   (P0-02, PR TBD)
+
+**Problem:** config errors in a containerised service tend to show up late and one at a time. A typo such as `EARLII_HTTP_ADRR` is silently ignored, so the default is used and the service listens on the wrong port. A missing variable surfaces only when a request first needs it. And a validation error that echoes its value prints a database password into the logs. But "reject anything unknown" has its own failure mode: roll back to an older image after adding a variable, and the old binary refuses to boot.
+
+**Options:**
+- **A: An env library** (struct tags, e.g. caarlos0/env). Less code. But it's a dependency for about 100 lines of logic, and unknown-key detection, duplicate detection and no-echo errors would still be custom.
+- **B: Lenient `os.Getenv` with defaults.** Simplest, but typos and wrong-case keys are invisible, and failures come one per redeploy.
+- **C: A standard-library parser over `os.Environ()`:**
+  - every error is collected with `errors.Join`, naming the variable but never its value;
+  - `EARLII_ENV` is required;
+  - unknown `EARLII_*` keys (any case) are fatal unless `EARLII_ENV=prod`, where they are only logged.
+
+**Chose C because:**
+- one boot reports every problem, so a broken deploy takes one fix instead of one per variable;
+- strictness catches typos everywhere except the place where it would cause an outage (a prod rollback);
+- secrets are about to enter config (database URLs in P0-04), so no error may echo a value, and that is tested.
+
+**Skipped A** because the standards say standard library first, and the hard parts would still be custom. **Skipped B** because silent defaults are how a service ends up on the wrong port.
+
+**Result:**
+- `go test -v ./internal/config` runs 42 passing cases, 27 of them rejection cases: signed and leading-zero ports, `1e3s`, a duration past the kill deadline, a key set twice, wrong-case keys, and Windows `=C:` entries.
+- A dedicated test feeds a fake DSN into every variable and asserts it never appears in the error.
+- Boot-time cost was not measured, because it runs once per process. Measure it with a `BenchmarkLoad` if config grows.
+
+**Soundbite:** "I made config fail fast and report everything at once, but I made unknown variables fatal only outside prod. Strict everywhere would have turned a routine rollback into a crash loop. Errors name the variable, never its value, because config is where database passwords live."
+
+**Likely follow-ups:**
+- Q: Why not fail on unknown keys in prod too? A: The environment is shared across image versions. A variable added for v2 is unknown to v1, so a strict v1 couldn't be rolled back to. Prod logs a warning instead.
+- Q: Why require `EARLII_ENV` instead of defaulting to dev? A: Defaulting to dev means a forgotten variable in prod silently runs dev behaviour. Requiring it costs one line of deploy config.
+
+---
+
+## S-008 · A shutdown budget that fits inside the platform's kill deadline   (P0-02, PR TBD, exercise P0-02-1)
+
+**Problem:** when a container is stopped, the platform sends SIGTERM and later SIGKILL. Docker waits 10 s; Render waits 30 s by default (docs/VERSIONS.md). If the drain takes longer than the platform waits, in-flight requests are cut off by the kill anyway, and the logs never show a "stopped" line. Three things could stretch the drain: a hung handler, a slowloris client, or a dependency check that never returns.
+
+**Options:**
+- **A: Close on SIGTERM.** Simplest, but every in-flight request fails on every deploy.
+- **B: `Shutdown` with no deadline.** Graceful, but one stuck request holds the process until SIGKILL.
+- **C: `Shutdown` bounded by a budget below the strictest kill deadline, then `Close`:**
+  - the budget is 8 s by default and capped at 9 s by config validation;
+  - `/readyz` fails as soon as the signal arrives, so load balancers stop routing;
+  - every connection has read, write and idle timeouts;
+  - the readiness checks run concurrently, under one 2 s timeout that a buggy check can't hold up.
+
+**Chose C because:**
+- the strictest platform (Docker, 10 s) sets the ceiling, and the cap enforces it, so a misconfiguration can't exceed it;
+- a second Ctrl-C restores the default signal handlers, so a developer is never stuck waiting;
+- every mode serves the probes, so Compose and Render health-check any container the same way.
+
+**Skipped B** because one hostile client could hold every deploy hostage.
+
+**Result:**
+- The six drain tests (in-flight completes, hung handler cut off at the deadline, slowloris, idle keep-alive, closed listener, pre-cancelled context) pass 5 runs out of 5 against a reference solution: `go test -count=5 ./internal/httpserver` with `exerciseStarted = true`.
+- Against the shipped stub, the drain and forced-close tests fail as intended.
+- Drain latency in production was not measured, because there's no deploy yet (P0-06). Measure it from the gap between the "stopped" log line and SIGTERM.
+
+**Soundbite:** "Deploys send SIGTERM, then SIGKILL after 10 seconds on Docker, so I bounded the graceful drain at 8 seconds and made config reject anything over 9. Readiness flips to failing on the signal so traffic moves away. Tests prove that a hung handler or a slowloris can't hold the process past the deadline."
+
+**Likely follow-ups:**
+- Q: Why 8 s when Render gives 30? A: The same image runs under Docker locally and in Compose, where the limit is 10 s. The strictest platform sets the budget.
+- Q: What about background jobs? A: In P0-04 the River client stop shares the same budget. It's one deadline passed down, not two timeouts that add up.

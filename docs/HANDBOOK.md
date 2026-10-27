@@ -31,7 +31,8 @@ One person maintains everything, with AI help. Optimise for code that is easy to
 ```text
 earlii/
 ├── AGENTS.md                 Agent instructions (single source); CLAUDE.md imports it
-├── Taskfile.yml              Task runner: setup, doctor, check, fmt, lint, test, handoff
+├── Taskfile.yml              Task runner: setup, doctor, check, fmt, lint, test, dev:api, handoff
+├── go.work                   Go workspace: lists every Go module (today only backend/)
 ├── mise.toml                 Tool version pins (local + CI)
 ├── lefthook.yml              Git hooks: format, secrets, commit-msg, pre-push
 ├── biome.json                TS/JS/JSON/CSS format + lint (Markdown excluded)
@@ -53,7 +54,12 @@ earlii/
 ├── .mcp.json                 MCP servers: gopls, playwright, context7 (optional)
 ├── .github/                  CI workflow, Dependabot, PR template
 ├── docs/                     Spec, roadmap, pointer, handbook, standards, versions, setup, ADRs, learning
-├── backend/                  (planned, P0-02) Go module: cmd/earlii, internal/<module>/
+├── backend/                  Go module github.com/devnadeemashraf/earlii/backend
+│   ├── cmd/earlii/           The one binary: mode dispatch, logger, signals (main.go)
+│   └── internal/
+│       ├── config/           Env-only config: parse, validate, fail fast with every error
+│       ├── health/           /healthz (liveness) and /readyz (concurrent named checks)
+│       └── httpserver/       Hardened http.Server (New) and graceful Serve (EXERCISE P0-02-1)
 ├── apps/web/                 (planned, P0-03) React PWA
 ├── packages/                 (planned, P0-05 / P2-01) generated API client, design tokens
 └── proto/                    (planned, P0-05) Protobuf contracts
@@ -82,7 +88,33 @@ flowchart LR
 
 ## 5. Runtime flows
 
-- Boot and shutdown (planned, P0-02)
+### Boot and shutdown (P0-02)
+
+`earlii <mode>` (`api`, `worker` or `scheduler`) runs `run()` in `backend/cmd/earlii/main.go`:
+
+1. **Args.** Anything other than exactly one known mode prints the usage line to stderr and exits **2**.
+2. **Logger.** A JSON `slog` logger on stdout, with UTC timestamps and a `mode` attribute. It is built *before* config so config errors are JSON too; its level (`slog.LevelVar`) is set after config loads.
+3. **Config.** `config.Load(os.Environ())` validates everything and reports every problem at once, naming variables but never echoing values. Invalid config logs one ERROR line and exits **1**.
+4. **Signals.** `signal.NotifyContext` turns SIGINT/SIGTERM into a cancelled context. After the first signal the default handlers come back, so a second Ctrl-C kills the process at once.
+5. **Serve.** Every mode listens on `EARLII_HTTP_ADDR` and serves `GET /healthz` (always 200 while the process runs) and `GET /readyz` (200 only if every check passes within 2 s; 503 with per-check `ok`/`fail`, details only in the logs). The `shutdown` check fails as soon as the signal arrives. Worker and scheduler only serve probes until River arrives (P0-04).
+6. **Drain.** `httpserver.Serve` stops accepting, drains in-flight requests for up to `EARLII_SHUTDOWN_TIMEOUT`, then force-closes. Exit **0** on a clean stop, **1** on any serving error. **Today `Serve` is the P0-02-1 exercise stub, which closes connections without draining.**
+
+Every connection has limits (`internal/httpserver/server.go`): 5 s to read headers, 15 s to read the request, 15 s to write the response, 60 s idle, 64 KiB of headers. The global write timeout will cut off Connect server-streaming RPCs: streaming handlers must set their own deadline with `http.ResponseController` (P0-05).
+
+### Configuration (environment only)
+
+| Variable | Default | Rules |
+| :-- | :-- | :-- |
+| `EARLII_ENV` | **required** | `dev` or `prod`. Required, so prod never runs on dev defaults |
+| `EARLII_HTTP_ADDR` | `:8080` | `host:port`; host empty, `localhost` or an IP; port 0 (random) is rejected in prod |
+| `PORT` | none | Used as `:$PORT` only when `EARLII_HTTP_ADDR` is unset (Render sets it, default 10000) |
+| `EARLII_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+| `EARLII_SHUTDOWN_TIMEOUT` | `8s` | Go duration, above 0 and at most 9 s, so the drain finishes before Docker's SIGKILL at 10 s |
+
+An empty value counts as unset. A variable set twice fails the boot. Unknown `EARLII_*` variables (any case) fail the boot unless `EARLII_ENV=prod`, where they are logged as warnings instead, so rolling back to an older image never crash-loops on a variable added for a newer one.
+
+### Other flows
+
 - Request path: web → Connect → handler → sqlc → Postgres (planned, P0-05)
 - Fetch cycle: scheduler → River job → connector → change detection → normalisation (planned, P1-03 – P1-07)
 - Alert fan-out: new posting → incremental match → digest/push (planned, P2-12, P2-13)
@@ -94,7 +126,7 @@ flowchart LR
 ## 7. Testing strategy
 
 - **Repo scripts:** `node:test` in `scripts/test/`. Pure logic lives in `scripts/lib/`, so the rules are unit-tested without git. The CLIs are also tested end to end through `spawnSync`.
-- **Go** (planned, P0-02): table-driven unit tests next to the code; `-race` in CI; integration tests against Postgres (P0-04, D-10); fixtures for connectors, with no live network in CI.
+- **Go:** table-driven unit tests next to the code, external test packages (`package x_test`) so tests use only the public API. `task test:go` adds `-race` when cgo is on (Linux CI); the Windows dev box has no gcc, so it runs without. Server tests bind `127.0.0.1:0` and synchronise with channels, never sleeps. Coming next: integration tests against Postgres (P0-04, D-10), and connector fixtures with no live network in CI.
 - **Web** (planned, P0-03): Vitest + Testing Library; Playwright e2e for the key flows (P2-04, P2-05).
 - **Required paths for every change:** happy, sad, edge and abuser. See CODING_STANDARDS section Tests.
 
@@ -115,6 +147,8 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
 
 ## 11. How-to recipes
 
+- **Run the API locally:** `task dev:api`, then `curl localhost:8080/readyz`. Ctrl-C drains and stops it; a second Ctrl-C kills it.
+- **Add a config variable:** add the key to `known` and parse it in `backend/internal/config/config.go`, with tests for valid, missing, malformed and abusive values. Document it in section 5 Configuration. Never echo the value in an error.
 - **Start a session:** open Claude Code in the repo root. POINTER is injected automatically. Say "next PR" (`/next-pr`).
 - **Add a tool:** pin it in `mise.toml`, add a probe in `scripts/lib/pins.mjs`, record it in `docs/VERSIONS.md`, then run `task doctor`.
 - **Add a Claude hook:** put the logic in `scripts/lib/` with tests, keep the entry point thin in `scripts/claude/`, and register it in `.claude/settings.json`. `repo-config.test.mjs` checks the script exists.
