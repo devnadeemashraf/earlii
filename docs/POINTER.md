@@ -29,13 +29,13 @@ _(empty)_
 
 ## Open questions for the human
 
-1. **Enable branch protection** on `main` if you haven't yet (docs/SETUP.md section 5, one command).
-2. **SPEC purge follow-up:** ask GitHub Support to drop cached views of the old P0-01 commits (docs/SETUP.md "Purging leaked files"), if not done.
-3. **Hosting the worker (D-04):** Render's free tier has no background workers. A worker run as a free web service sleeps after 15 min idle, which would break polling. Decide before P0-06.
-4. Optional: set `CONTEXT7_API_KEY` to enable the docs-lookup MCP (docs/AI_WORKFLOW.md).
+1. **SPEC purge follow-up:** ask GitHub Support to drop cached views of the old P0-01 commits (docs/SETUP.md "Purging leaked files"), if not done.
+2. **Hosting the worker (D-04):** Render's free tier has no background workers. A worker run as a free web service sleeps after 15 min idle, which would break polling. Decide before P0-06.
+3. Optional: set `CONTEXT7_API_KEY` to enable the docs-lookup MCP (docs/AI_WORKFLOW.md).
 
 ## Environment notes and gotchas
 
+- The `protect-main` ruleset is active (PR-only, squash, 3 required checks; verified 2026-10-27 with `gh api repos/devnadeemashraf/earlii/rulesets`).
 - Windows 11 dev box. Claude Code hooks run in Git Bash; Task uses its own built-in shell, so Taskfile commands are POSIX-style everywhere.
 - Tools come from `mise.toml`. Activate mise in PowerShell (docs/SETUP.md section 2), or prefix commands with `mise exec --`. **That includes `git commit`:** without mise on PATH, lefthook's `go-fmt` and `gitleaks` steps fail with "command not found".
 - The multi-module loops in `Taskfile.yml` (`go list -m` over `go.work`) are verified on Windows, including `cd` into a `C:\...` path.
