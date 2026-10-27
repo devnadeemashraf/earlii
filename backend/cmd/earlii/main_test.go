@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"slices"
@@ -30,23 +31,32 @@ func TestRunRejectsBadArgs(t *testing.T) {
 }
 
 func TestRunFailsFastOnInvalidConfig(t *testing.T) {
-	// A zone away from UTC, so a local timestamp can't pass by accident.
-	// time.Local is global: this test must never run in parallel.
-	orig := time.Local
-	time.Local = time.FixedZone("IST", 5*60*60+30*60)
-	t.Cleanup(func() { time.Local = orig })
 	var stdout, stderr bytes.Buffer
 	code := run(t.Context(), []string{"api"}, []string{"EARLII_LOG_LEVEL=loud"}, &stdout, &stderr)
 	if code != 1 {
 		t.Fatalf("exit code = %d, want 1", code)
 	}
 	line := firstLine(t, stdout.String())
-	if ts, _ := line["time"].(string); !strings.HasSuffix(ts, "Z") {
-		t.Errorf("time = %q, want UTC (ending in Z) whatever the host's zone", ts)
-	}
-	if line["level"] != "ERROR" || !strings.Contains(line["error"].(string), "EARLII_ENV") ||
-		!strings.Contains(line["error"].(string), "EARLII_LOG_LEVEL") {
+	msg, _ := line["error"].(string)
+	if line["level"] != "ERROR" || !strings.Contains(msg, "EARLII_ENV") || !strings.Contains(msg, "EARLII_LOG_LEVEL") {
 		t.Fatalf("log line = %v, want one ERROR naming both bad variables", line)
+	}
+}
+
+// Log timestamps are UTC whatever the host's zone, so lines from different
+// machines sort and compare correctly.
+func TestUTCTimestamps(t *testing.T) {
+	ist := time.FixedZone("IST", 5*60*60+30*60)
+	at := time.Date(2026, 1, 1, 5, 30, 0, 0, ist)
+
+	got := utc(nil, slog.Time(slog.TimeKey, at))
+	if got.Value.Time().Location() != time.UTC || !got.Value.Time().Equal(at) {
+		t.Fatalf("time = %v, want %v in UTC", got.Value.Time(), at.UTC())
+	}
+	// Only the record's own timestamp is rewritten, not a user attribute.
+	other := utc(nil, slog.Time("posted_at", at))
+	if other.Value.Time().Location() != ist {
+		t.Fatalf("posted_at was rewritten to %v", other.Value.Time().Location())
 	}
 }
 
@@ -65,7 +75,7 @@ func TestRunFailsWhenAddressInUse(t *testing.T) {
 func TestRunServesProbesInEveryMode(t *testing.T) {
 	for _, mode := range []string{"api", "worker", "scheduler"} {
 		t.Run(mode, func(t *testing.T) {
-			p := startRun(t, mode, "EARLII_ENV=dev")
+			p := startRun(t, mode, "EARLII_ENV=dev", "EARLII_HTTP_ADDR=127.0.0.1:0")
 			base := "http://" + p.addr
 
 			for _, tc := range []struct {
@@ -95,7 +105,8 @@ func TestRunServesProbesInEveryMode(t *testing.T) {
 
 // A rollback must not crash-loop on a variable added for a newer release.
 func TestRunWarnsOnUnknownKeysInProd(t *testing.T) {
-	env := []string{"EARLII_ENV=prod", "EARLII_ADDED_LATER=1"}
+	// Prod rejects port 0, so this test needs a concrete port.
+	env := []string{"EARLII_ENV=prod", "EARLII_ADDED_LATER=1", "EARLII_HTTP_ADDR=127.0.0.1:" + freePort(t)}
 	p := startRun(t, "api", env...)
 	p.cancel()
 	if code := p.wait(t); code != 0 {
@@ -116,23 +127,30 @@ type process struct {
 	cancel context.CancelFunc
 	addr   string
 	code   chan int
+	done   chan struct{} // closed once run and the log reader have both returned
 	lines  chan map[string]any
 	seen   []map[string]any // every line read so far, in order
 }
 
-// startRun starts run in the background on a free port and waits until it
-// logs that it is listening.
+// startRun starts run in the background and waits until it logs that it is
+// listening. env must set EARLII_HTTP_ADDR.
 func startRun(t *testing.T, mode string, env ...string) *process {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	pr, pw := io.Pipe()
-	p := &process{cancel: cancel, code: make(chan int, 1), lines: make(chan map[string]any, 100)}
-	env = append(env, "EARLII_HTTP_ADDR=127.0.0.1:"+freePort(t))
+	p := &process{
+		cancel: cancel, code: make(chan int, 1), done: make(chan struct{}),
+		lines: make(chan map[string]any, 100),
+	}
+	readerDone := make(chan struct{})
 	go func() {
+		defer close(p.done)
+		defer func() { <-readerDone }()
 		p.code <- run(ctx, []string{mode}, env, pw, io.Discard)
 		_ = pw.Close()
 	}()
 	go func() {
+		defer close(readerDone)
 		defer close(p.lines)
 		sc := bufio.NewScanner(pr)
 		for sc.Scan() {
@@ -141,13 +159,26 @@ func startRun(t *testing.T, mode string, env ...string) *process {
 				t.Errorf("log line is not JSON: %q", sc.Text())
 				continue
 			}
-			p.lines <- line
+			select {
+			case p.lines <- line:
+			default:
+				t.Errorf("log buffer full; dropped %v", line)
+			}
 		}
 		if err := sc.Err(); err != nil {
 			t.Errorf("reading logs: %v", err)
 		}
 	}()
-	t.Cleanup(cancel)
+	// Wait for run to return, so no goroutine, port or signal registration
+	// outlives the test, even when it fails half-way.
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-p.done:
+		case <-time.After(15 * time.Second):
+			t.Error("run did not return after the test ended")
+		}
+	})
 
 	line := p.expectLog(t, "listening")
 	if line["mode"] != mode {
@@ -194,7 +225,8 @@ func status(t *testing.T, method, url string) int {
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("%s %s: %v", method, url, err)
 	}
@@ -204,6 +236,8 @@ func status(t *testing.T, method, url string) int {
 }
 
 // freePort finds a free port up front, because config rejects port 0 in prod.
+// The port is released before run binds it, so another process could take it
+// in between; dev-mode tests use port 0 instead.
 func freePort(t *testing.T) string {
 	t.Helper()
 	ln := listen(t)

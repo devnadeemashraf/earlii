@@ -37,6 +37,9 @@ func Readiness(logger *slog.Logger, timeout time.Duration, checks ...Check) http
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
+		// Logs are written after ctx may be done; context-aware handlers (P0-07)
+		// must not drop them.
+		logCtx := context.WithoutCancel(r.Context())
 
 		type result struct {
 			name string
@@ -61,10 +64,11 @@ func Readiness(logger *slog.Logger, timeout time.Duration, checks ...Check) http
 					res.Checks[got.name] = "ok"
 					continue
 				}
-				logger.WarnContext(ctx, "readiness check failed",
+				logger.WarnContext(logCtx, "readiness check failed",
 					slog.String("check", got.name), slog.String("error", got.err.Error()))
 			case <-ctx.Done():
-				logger.WarnContext(ctx, "readiness checks timed out", slog.Duration("timeout", timeout))
+				logger.WarnContext(logCtx, "readiness checks unfinished",
+					slog.Duration("timeout", timeout), slog.String("cause", context.Cause(ctx).Error()))
 				res.Status = "unavailable"
 				write(w, http.StatusServiceUnavailable, res)
 				return

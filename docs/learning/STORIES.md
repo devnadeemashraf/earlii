@@ -229,7 +229,6 @@ Interview-ready write-ups of real decisions in this codebase. One entry per nota
 - **B: `Shutdown` with no deadline.** Graceful, but one stuck request holds the process until SIGKILL.
 - **C: `Shutdown` bounded by a budget below the strictest kill deadline, then `Close`:**
   - the budget is 8 s by default and capped at 9 s by config validation;
-  - `/readyz` fails as soon as the signal arrives, so load balancers stop routing;
   - every connection has read, write and idle timeouts;
   - the readiness checks run concurrently, under one 2 s timeout that a buggy check can't hold up.
 
@@ -245,8 +244,9 @@ Interview-ready write-ups of real decisions in this codebase. One entry per nota
 - Against the shipped stub, the drain and forced-close tests fail as intended.
 - Drain latency in production was not measured, because there's no deploy yet (P0-06). Measure it from the gap between the "stopped" log line and SIGTERM.
 
-**Soundbite:** "Deploys send SIGTERM, then SIGKILL after 10 seconds on Docker, so I bounded the graceful drain at 8 seconds and made config reject anything over 9. Readiness flips to failing on the signal so traffic moves away. Tests prove that a hung handler or a slowloris can't hold the process past the deadline."
+**Soundbite:** "Deploys send SIGTERM, then SIGKILL after 10 seconds on Docker, so I bounded the graceful drain at 8 seconds and made config reject anything over 9. Tests prove that a hung handler or a slowloris can't hold the process past the deadline."
 
 **Likely follow-ups:**
+- Q: Why not fail `/readyz` on the signal so the load balancer stops routing? A: I tried that, and review showed it was dead code. `Shutdown` closes the listener first, so no new probe can reach the endpoint. The real pattern is a pre-stop delay before `Shutdown`, which only matters once there's a load balancer (P0-06).
 - Q: Why 8 s when Render gives 30? A: The same image runs under Docker locally and in Compose, where the limit is 10 s. The strictest platform sets the budget.
 - Q: What about background jobs? A: In P0-04 the River client stop shares the same budget. It's one deadline passed down, not two timeouts that add up.

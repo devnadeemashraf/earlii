@@ -14,10 +14,12 @@ import (
 //   - it waits up to drain for in-flight requests to finish;
 //   - if drain runs out, it force-closes the remaining connections.
 //
-// It returns nil after a clean drain, an error wrapping
-// context.DeadlineExceeded after a forced close, and any serving error
-// (other than http.ErrServerClosed) as soon as it happens, without waiting
-// for ctx.
+// It returns nil after a clean drain (or if ctx is already done when it
+// starts), an error wrapping context.DeadlineExceeded after a forced close, and
+// any serving error (other than http.ErrServerClosed) as soon as it happens,
+// without waiting for ctx.
+//
+// Serve owns ln and closes it before returning. srv can't be reused afterwards.
 func Serve(ctx context.Context, srv *http.Server, ln net.Listener, drain time.Duration) error {
 	// EXERCISE P0-02-1: replace this hard stop with a graceful drain (errgroup + srv.Shutdown).
 	// Today every in-flight request is cut off the moment ctx is done.

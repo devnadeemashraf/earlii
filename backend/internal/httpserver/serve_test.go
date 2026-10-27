@@ -95,7 +95,7 @@ func TestServeDrainsInFlightRequest(t *testing.T) {
 		got <- result{body: string(b), err: err}
 	}()
 
-	<-started
+	waitFor(t, started, "the handler never started: is srv.Serve running?")
 	r.cancel() // the signal arrives mid-request
 	select {
 	case err := <-r.done:
@@ -107,7 +107,12 @@ func TestServeDrainsInFlightRequest(t *testing.T) {
 	}
 	close(release)
 
-	res := <-got
+	var res result
+	select {
+	case res = <-got:
+	case <-time.After(slack):
+		t.Fatal("the in-flight request never completed")
+	}
 	if res.err != nil || res.body != "finished" {
 		t.Fatalf("in-flight request got %q, %v; want it to finish normally", res.body, res.err)
 	}
@@ -136,7 +141,7 @@ func TestServeForcesCloseAfterDrainTimeout(t *testing.T) {
 		}
 	}()
 
-	<-started
+	waitFor(t, started, "the handler never started: is srv.Serve running?")
 	begin := time.Now()
 	r.cancel()
 	err := r.wait(t, drain+slack)
@@ -237,7 +242,22 @@ func TestServeSlowlorisCannotBlockShutdown(t *testing.T) {
 	}
 
 	r.cancel()
-	_ = r.wait(t, drain+slack) // nil or DeadlineExceeded are both fine; hanging is not
+	// nil or DeadlineExceeded are both fine (it depends on whether the server
+	// read the partial request yet); hanging or any other error is not.
+	if err := r.wait(t, drain+slack); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Serve = %v, want nil or an error wrapping context.DeadlineExceeded", err)
+	}
+}
+
+// waitFor fails the test with msg if ch isn't closed within slack, so a broken
+// attempt fails fast instead of hanging until go test's 10-minute timeout.
+func waitFor(t *testing.T, ch <-chan struct{}, msg string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(slack):
+		t.Fatal(msg)
+	}
 }
 
 // listen opens a loopback listener on a free port.

@@ -10,7 +10,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -34,8 +33,6 @@ const usage = "usage: earlii api|worker|scheduler\n"
 const readyTimeout = 2 * time.Second
 
 var modes = []string{"api", "worker", "scheduler"}
-
-var errShuttingDown = errors.New("shutting down")
 
 func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Environ(), os.Stdout, os.Stderr))
@@ -102,17 +99,9 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 
-	// Fails as soon as shutdown begins, so a load balancer stops routing here
-	// while in-flight requests drain.
-	shutdown := health.Check{Name: "shutdown", Fn: func(context.Context) error {
-		if ctx.Err() != nil {
-			return errShuttingDown
-		}
-		return nil
-	}}
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", health.Liveness())
-	mux.Handle("GET /readyz", health.Readiness(logger, readyTimeout, shutdown))
+	mux.Handle("GET /readyz", health.Readiness(logger, readyTimeout))
 
 	logger.InfoContext(ctx, "listening", slog.String("addr", ln.Addr().String()),
 		slog.String("env", string(cfg.Env)))

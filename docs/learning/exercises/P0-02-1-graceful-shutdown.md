@@ -21,9 +21,9 @@ A small example that isn't the answer: a shop at closing time locks the front do
   - the serving error at once if `srv.Serve` fails (not `http.ErrServerClosed`).
 - **Constraints:**
   - no `time.Sleep`;
-  - no goroutine may outlive `Serve`;
+  - no goroutine that `Serve` starts may outlive it;
   - wrap errors with context (`fmt.Errorf("drain: %w", err)`).
-- **Setup:** `cd backend && go get golang.org/x/sync@v0.24.0` (the version is recorded in docs/VERSIONS.md).
+- **Setup:** `cd backend && go get golang.org/x/sync@v0.24.0 && go mod tidy` (the version is recorded in docs/VERSIONS.md).
 - **Target:** returns within `drain` plus a few milliseconds, whatever the clients do.
 
 ## Tests

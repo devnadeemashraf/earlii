@@ -50,9 +50,10 @@ type Config struct {
 	LogLevel slog.Level
 	// ShutdownTimeout bounds the whole graceful drain after SIGINT/SIGTERM.
 	ShutdownTimeout time.Duration
-	// UnknownKeys are EARLII_* variables this build doesn't recognise. They fail
-	// the boot unless EARLII_ENV is prod (typos), and are only reported in prod, so rolling back to
-	// an older image never crash-loops on a variable added for a newer one.
+	// UnknownKeys are EARLII_* variables this build doesn't recognise. Outside
+	// prod they fail the boot (likely typos). In prod they are only warned
+	// about, so rolling back to an older image never crash-loops on a variable
+	// added for a newer one.
 	UnknownKeys []string
 }
 
