@@ -44,3 +44,7 @@ CLAUDE.local.md
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Private planning inputs: kept local, never published (owner decision 2026-10-27)
+docs/SPEC.md
+docs/project-scaffold-claude.md
