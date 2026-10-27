@@ -10,6 +10,17 @@ export const PROTECTED_BRANCHES = ["main", "master"];
 export const POINTER_PATH = "docs/POINTER.md";
 /** Owner-private inputs: gitignored, never committed or published. */
 export const PRIVATE_PATHS = ["docs/SPEC.md", "docs/project-scaffold-claude.md"];
+/** Owner-private directories (the per-PR study guides): gitignored, never committed or published. */
+export const PRIVATE_DIRS = ["docs/learning"];
+
+/** True for a private file, a private directory or anything inside one. */
+export function isPrivatePath(relPath) {
+  const p = normalizeRepoPath(relPath).replace(/\/+$/, "").toLowerCase();
+  return (
+    PRIVATE_PATHS.some((f) => f.toLowerCase() === p) ||
+    PRIVATE_DIRS.some((d) => p === d || p.startsWith(`${d}/`))
+  );
+}
 
 const allow = () => ({ decision: "allow" });
 const deny = (reason) => ({ decision: "deny", reason });
@@ -82,10 +93,10 @@ function evaluateGit(tokens, ctx, rawSegment) {
     case "add":
     case "stage": {
       const forced = args.some((a) => a === "-f" || a === "--force" || /^-[a-zA-Z]*f/.test(a));
-      const touchesPrivate = args.some((a) => PRIVATE_PATHS.includes(normalizeRepoPath(a)));
-      if (touchesPrivate || (forced && args.some((a) => /SPEC|scaffold/i.test(a)))) {
+      const touchesPrivate = args.some(isPrivatePath);
+      if (touchesPrivate || (forced && args.some((a) => /SPEC|scaffold|learning/i.test(a)))) {
         return deny(
-          "docs/SPEC.md and the scaffold prompt are private and must never be committed.",
+          "docs/SPEC.md, the scaffold prompt and docs/learning/ are private and must never be committed.",
         );
       }
       return allow();

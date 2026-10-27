@@ -24,7 +24,7 @@ One person maintains everything, with AI help. Optimise for code that is easy to
 | BP-xxx | A bug from an earlier PR, queued in POINTER's FIX-FIRST QUEUE |
 | SCP-xx | A Spec change proposal (ROADMAP) |
 | D-xx | An open or closed decision (ROADMAP section Decisions) |
-| Decision story | An interview-ready write-up of a technical decision (`docs/learning/STORIES.md`) |
+| Study guide | The owner's private, per-PR explanation of a PR's concepts, code, internals and decisions, with labs (`docs/learning/`, gitignored, never committed) |
 
 ## 3. Repo map
 
@@ -53,13 +53,14 @@ earlii/
 ├── .claude/                  Claude Code: settings (hooks, permissions, attribution off), skills, subagents
 ├── .mcp.json                 MCP servers: gopls, playwright, context7 (optional)
 ├── .github/                  CI workflow, Dependabot, PR template
-├── docs/                     Spec, roadmap, pointer, handbook, standards, versions, setup, ADRs, learning
+├── docs/                     Spec, roadmap, pointer, handbook, standards, versions, setup, ADRs
+│   └── learning/             Private study guides and labs, one folder per PR (gitignored, never committed)
 ├── backend/                  Go module github.com/devnadeemashraf/earlii/backend
 │   ├── cmd/earlii/           The one binary: mode dispatch, logger, signals (main.go)
 │   └── internal/
 │       ├── config/           Env-only config: parse, validate, fail fast with every error
 │       ├── health/           /healthz (liveness) and /readyz (concurrent named checks)
-│       └── httpserver/       Hardened http.Server (New) and graceful Serve (EXERCISE P0-02-1)
+│       └── httpserver/       Hardened http.Server (New) and graceful Serve (errgroup + Shutdown)
 ├── apps/web/                 (planned, P0-03) React PWA
 ├── packages/                 (planned, P0-05 / P2-01) generated API client, design tokens
 └── proto/                    (planned, P0-05) Protobuf contracts
@@ -97,7 +98,7 @@ flowchart LR
 3. **Config.** `config.Load(os.Environ())` validates everything and reports every problem at once, naming variables but never echoing values. Invalid config logs one ERROR line and exits **1**.
 4. **Signals.** `signal.NotifyContext` turns SIGINT/SIGTERM into a cancelled context. After the first signal the default handlers come back, so a second Ctrl-C kills the process at once.
 5. **Serve.** Every mode listens on `EARLII_HTTP_ADDR` and serves `GET /healthz` (always 200 while the process runs) and `GET /readyz` (200 only if every check passes within 2 s; 503 with per-check `ok`/`fail`, details only in the logs). There are no checks yet: Postgres and River add theirs in P0-04. Worker and scheduler only serve probes until River arrives (P0-04).
-6. **Drain.** `httpserver.Serve` stops accepting, drains in-flight requests for up to `EARLII_SHUTDOWN_TIMEOUT`, then force-closes. Exit **0** on a clean stop, **1** on any serving error. `Shutdown` closes the listener first, so `/readyz` can't report "draining" to new probes. If a load balancer ever needs to deregister an instance before the drain, that takes a pre-stop delay (consider it in P0-06). **Today `Serve` is the P0-02-1 exercise stub, which closes connections without draining.**
+6. **Drain.** `httpserver.Serve` runs two goroutines in an `errgroup`: one runs `srv.Serve`, the other waits for the signal (or a serving error) and calls `srv.Shutdown` with a fresh `EARLII_SHUTDOWN_TIMEOUT` budget. `Shutdown` stops accepting, closes idle keep-alive connections at once and waits for in-flight requests; if the budget runs out, `srv.Close` cuts off the rest and `Serve` returns an error wrapping `context.DeadlineExceeded`. Exit **0** on a clean stop, **1** on any serving error or forced close. `Shutdown` closes the listener first, so `/readyz` can't report "draining" to new probes. If a load balancer ever needs to deregister an instance before the drain, that takes a pre-stop delay (consider it in P0-06).
 
 Every connection has limits (`internal/httpserver/server.go`): 5 s to read headers, 15 s to read the request, 15 s to write the response, 60 s idle, 64 KiB of headers. The global write timeout will cut off Connect server-streaming RPCs: streaming handlers must set their own deadline with `http.ResponseController` (P0-05).
 

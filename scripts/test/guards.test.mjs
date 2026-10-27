@@ -36,6 +36,8 @@ describe("evaluateBash: happy paths", () => {
     "git commit -m 'feat: x'",
     "git push -u origin feat/P1-04-greenhouse",
     "git push",
+    "git add docs/ROADMAP.md backend/",
+    "git rm -r --cached docs/learning",
     "git merge origin/main",
     "gh pr create --title 'feat: x' --body 'ok'",
     "gh pr view 3",
@@ -87,6 +89,12 @@ describe("evaluateBash: abuse cases", () => {
     "git add -f docs/SPEC.md",
     "git add --force docs/project-scaffold-claude.md",
     "git add ./docs/SPEC.md",
+    "git add docs/learning",
+    "git add docs/learning/",
+    "git add -f docs/learning/P0-02-go-skeleton/README.md",
+    "git add ./docs/learning/README.md",
+    String.raw`git add docs\learning\README.md`,
+    "git add -f docs/LEARNING",
   ]) {
     it(`denies: ${cmd}`, () => assert.equal(decide(cmd), "deny"));
   }

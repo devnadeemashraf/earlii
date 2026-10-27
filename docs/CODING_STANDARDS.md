@@ -80,7 +80,7 @@ These standards are enforced by tooling wherever possible (`task check`). Where 
   - no live network: use `httptest` and recorded fixtures under `testdata/`.
 - **Fixtures** are real responses recorded once, scrubbed of PII, with a README noting the source and date.
 - **Assertions** check behaviour, not implementation. Never weaken a test to get green.
-- **Coverage** is a smell detector, not a goal. Mutation testing (gremlins, Stryker) is used in LEARN *test it* exercises.
+- **Coverage** is a smell detector, not a goal. Mutation testing (gremlins, Stryker) checks the suites that guard critical logic (P1-05, P2-02).
 
 ## Git
 

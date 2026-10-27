@@ -46,13 +46,15 @@ describe("checkHandoff", () => {
     assert.match(r.errors[0], /POINTER/);
   });
 
-  it("passes a code change with POINTER and warns about the missing story", () => {
+  it("passes a code change with POINTER, with no warnings", () => {
     const r = checkHandoff({
       changes: [mod("backend/internal/feed/feed.go"), mod("docs/POINTER.md")],
       baseFiles: base,
     });
     assert.equal(r.ok, true);
-    assert.match(r.warnings[0], /STORIES/);
+    // The study guides are private (docs/learning/ is gitignored), so CI can't
+    // and mustn't look for them.
+    assert.deepEqual(r.warnings, []);
   });
 
   it("fails a new module without HANDBOOK", () => {

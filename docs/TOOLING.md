@@ -12,7 +12,7 @@ Agents produce plausible code quickly. The failure modes shift from "slow to wri
 | Drifting tool versions between agent, human and CI | A single pin file used everywhere | mise + `task doctor` |
 | Style churn and noisy diffs | Formatters on every edit and every commit | Biome, golangci-lint fmt, PostToolUse hook, lefthook |
 | Subtle bugs and unsafe patterns | Strict linters with security rules; SAST | golangci-lint (gosec, errorlint, noctx…), Semgrep (planned) |
-| Tests that pass but don't test | Mutation testing; seeded-bug grading | gremlins, Stryker (planned, LEARN *test it*) |
+| Tests that pass but don't test | Mutation testing; seeded-bug grading | gremlins, Stryker (planned, P1-05 / P2-02) |
 | Secrets pasted into code or configs | Secret scanning before commit and in CI | gitleaks |
 | Vulnerable or bloated dependencies | Vulnerability and unused-code scanners | govulncheck, OSV-Scanner, knip (planned) |
 | Contract and schema breaks | Breaking-change checks | `buf breaking` (P0-05) |
@@ -54,8 +54,8 @@ Agents produce plausible code quickly. The failure modes shift from "slow to wri
 | [OSV-Scanner](https://github.com/google/osv-scanner) | Vulnerability scan for npm and Go lockfiles against the OSV database | Apache-2.0 | v2.7.0 | P0-03 |
 | [Trivy](https://github.com/aquasecurity/trivy) | Container image vulnerability and misconfiguration scan | Apache-2.0 | v0.76.1 | P0-06 |
 | [hadolint](https://github.com/hadolint/hadolint) | Dockerfile linting | GPL-3.0 (dev tool only) | v2.15.1 | P0-06 |
-| [benchstat](https://github.com/golang/perf) | Statistically sound before/after comparison of Go benchmarks, so decision stories carry real numbers | BSD-3-Clause | module `golang.org/x/perf` | P1-12 |
-| [gremlins](https://github.com/go-gremlins/gremlins) | Mutation testing for Go: proves tests catch bugs, not just run lines | Apache-2.0 | v0.6.0 | P1-05 (LEARN *test it*) |
+| [benchstat](https://github.com/golang/perf) | Statistically sound before/after comparison of Go benchmarks, so decisions carry real numbers | BSD-3-Clause | module `golang.org/x/perf` | P1-12 |
+| [gremlins](https://github.com/go-gremlins/gremlins) | Mutation testing for Go: proves tests catch bugs, not just run lines | Apache-2.0 | v0.6.0 | P1-05 |
 | [Stryker](https://github.com/stryker-mutator/stryker-js) | Mutation testing for TS/React | Apache-2.0 | v10.1.1 | P2-02 |
 | [knip](https://github.com/webpro-nl/knip) | Finds unused files, exports and dependencies: agents often leave dead code behind | ISC | v6.43.0 | P0-03 |
 | [size-limit](https://github.com/ai/size-limit) | Fails CI when the JS bundle exceeds budget (≤ 170 KB) | MIT | 14.3.0 | P2-05 |
@@ -88,7 +88,7 @@ Agents produce plausible code quickly. The failure modes shift from "slow to wri
 | ESLint + Prettier | MIT | Two tools, slower, more config. Biome covers the needed rules. Revisit if a must-have ESLint plugin appears |
 | husky / pre-commit | MIT | husky is Node-only; pre-commit needs a Python runtime. lefthook is a single binary |
 | Make / just | GPL / CC0 | Shell differences on Windows (see ADR-0001) |
-| markdownlint / Prettier for Markdown | MIT | Not needed yet. Biome's Markdown formatting was **disabled** after it broke frontmatter (decision story S-003) |
+| markdownlint / Prettier for Markdown | MIT | Not needed yet. Biome's Markdown formatting was **disabled** after it broke frontmatter (see the Biome gotcha in VERSIONS) |
 
 ## How the pieces run
 

@@ -26,8 +26,8 @@ flowchart TB
 | Language servers / MCP | `gopls mcp` (Go workspace symbols, diagnostics, references); Playwright MCP (browser snapshots of the PWA); Context7 (optional versioned docs lookup) | `.mcp.json` |
 | Local API reference | `go doc` at the pinned module version; `.d.ts` files in `node_modules`; `--help` for CLIs | `/api-lookup` skill |
 | Hooks | Inject POINTER; block secret, generated and vendored edits; ask before SPEC/LICENSE edits; block commits/pushes to main, force-push, `--no-verify`, merges, and PRs without a POINTER update; auto-format | `.claude/settings.json` → `scripts/claude/*.mjs` → `scripts/lib/*.mjs` (unit-tested) |
-| Skills | `/next-pr`, `/handoff`, `/review`, `/story`, `/exercise`, `/api-lookup`, `/snapshot`, `/perf-check` | `.claude/skills/<name>/SKILL.md` |
-| Subagents | `architect` (2–3 options + recommendation), `red-team` (abuse cases → tests), `reviewer` (diff vs standards), `mentor` (LEARN grading) | `.claude/agents/*.md` |
+| Skills | `/next-pr`, `/handoff`, `/review`, `/study-guide`, `/api-lookup`, `/snapshot`, `/perf-check` | `.claude/skills/<name>/SKILL.md` |
+| Subagents | `architect` (2–3 options + recommendation), `red-team` (abuse cases → tests), `reviewer` (diff vs standards), `mentor` (quizzes on the study guides, lab reviews) | `.claude/agents/*.md` |
 | Git hooks | Format, secrets, Conventional Commits + no AI trailers, no push to main | `lefthook.yml` → `scripts/*.mjs` |
 | CI | Lint + tests on Linux and Windows; the handoff rule; Dependabot | `.github/` |
 
@@ -53,15 +53,14 @@ The owner holds all IP. The setting `"attribution": {"commit": "", "pr": "", "se
    - orient;
    - branch;
    - design: the architect and red-team subagents for M items;
-   - carve the LEARN exercise(s);
    - tests first;
    - implement;
    - `task check`;
    - `/review`;
-   - `/handoff` + `/story`;
+   - `/handoff`, then `/study-guide` (private, never committed);
    - commit, push, PR.
 4. **You:**
-   - do the exercise (ask `/exercise hint P1-03-1 1` if stuck, or `/exercise grade P1-03-1` when done);
+   - study the PR's guide in `docs/learning/<ID>-<slug>/` and do its labs (ask the mentor to quiz you or review a lab);
    - run any 🧪 manual checks;
    - review the PR and the decision brief;
    - squash-merge.
@@ -74,9 +73,9 @@ Run `/handoff` before you stop, even mid-item. POINTER's NEXT UP and gotchas are
 
 - "Architect: compare approaches for P1-07 scheduling." Runs the architect subagent.
 - "Red-team the board discovery design." Runs the red-team subagent.
-- "/story why keyset pagination" for an interview-ready decision write-up.
-- "mode: learn intense" or "mode: build" switches modes (recorded in POINTER).
-- "skip" during an exercise: the AI completes it and reschedules it.
+- "/study-guide P0-02" (re)writes the private study guide for a PR.
+- "Mentor: quiz me on P0-02 chapter 4" or "Mentor: review my lab 05".
+- "mode: build" or "mode: learn" switches modes (recorded in POINTER).
 
 ## Other AI tools
 
