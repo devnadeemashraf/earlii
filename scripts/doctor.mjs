@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkTools, parseMiseTools, versionMatches, withoutDisabled } from "./lib/pins.mjs";
+import { checkTools, parseMiseTools, withoutDisabled } from "./lib/pins.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -24,15 +24,13 @@ const tools = withoutDisabled(
 );
 const results = checkTools(tools, exec);
 
+// Root devDependencies are pinned exactly; check what's actually installed in node_modules.
 const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-const biomeWant = pkg.devDependencies["@biomejs/biome"];
-const biome = exec("pnpm", ["exec", "biome", "--version"]);
-results.push({
-  name: "@biomejs/biome",
-  want: biomeWant,
-  got: biome.stdout.split(/\r?\n/)[0].trim(),
-  status: !biome.ok ? "missing" : versionMatches(biome.stdout, biomeWant) ? "ok" : "mismatch",
-});
+for (const [name, want] of Object.entries(pkg.devDependencies ?? {})) {
+  const manifest = path.join(root, "node_modules", name, "package.json");
+  const got = existsSync(manifest) ? JSON.parse(readFileSync(manifest, "utf8")).version : "";
+  results.push({ name, want, got, status: !got ? "missing" : got === want ? "ok" : "mismatch" });
+}
 
 let failed = false;
 for (const r of results) {
@@ -54,7 +52,7 @@ for (const w of warnings) console.log(`warn ${w}`);
 if (failed) {
   console.error("\ndoctor: some tools are missing or off-pin.");
   console.error(
-    "  Run `mise install`, and make sure mise is activated in your shell (docs/SETUP.md).",
+    "  Run `mise install` and `pnpm install`, and make sure mise is activated in your shell (docs/SETUP.md).",
   );
   process.exit(1);
 }

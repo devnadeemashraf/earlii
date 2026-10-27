@@ -1,0 +1,11 @@
+{
+  "//": "Reference project for the path-alias convention (ADR-0004). Copy this shape into every TS app and package.",
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

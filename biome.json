@@ -38,5 +38,27 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/**/src/**", "packages/**/src/**", "scripts/test/fixtures/ts-alias/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["../*", "../**"],
+                    "message": "Use the @/ alias (ADR-0004) instead of parent-relative imports."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
