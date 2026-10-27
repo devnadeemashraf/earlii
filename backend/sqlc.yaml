@@ -1,0 +1,15 @@
+# sqlc (https://docs.sqlc.dev): typed Go from SQL. Regenerate with `task gen`;
+# `task lint:sql` fails if gen/db is stale. Never edit gen/ by hand.
+version: "2"
+sql:
+  - engine: postgresql
+    # goose files: sqlc reads only the Up sections, and ours have no others.
+    schema: internal/postgres/migrations
+    queries: internal/postgres/queries
+    strict_function_checks: true
+    gen:
+      go:
+        package: db
+        out: gen/db
+        sql_package: pgx/v5
+        emit_empty_slices: true

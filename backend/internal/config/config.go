@@ -4,6 +4,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Env is the deployment environment. It is required so that production can
@@ -29,6 +32,11 @@ const (
 	keyHTTPAddr        = "EARLII_HTTP_ADDR"
 	keyLogLevel        = "EARLII_LOG_LEVEL"
 	keyShutdownTimeout = "EARLII_SHUTDOWN_TIMEOUT"
+	keyDatabaseURL     = "EARLII_DATABASE_URL"
+	// keyTestDatabaseURL is read by the integration tests only. It is
+	// recognised here so that having it exported in a shell doesn't fail a
+	// dev boot as an unknown variable.
+	keyTestDatabaseURL = "EARLII_TEST_DATABASE_URL"
 	// keyPort is set by Render (and other PaaS hosts) to the port to bind.
 	keyPort = "PORT"
 
@@ -41,13 +49,60 @@ const (
 	maxShutdownTimeout = 9 * time.Second
 )
 
-var known = []string{keyEnv, keyHTTPAddr, keyLogLevel, keyShutdownTimeout}
+var known = []string{keyEnv, keyHTTPAddr, keyLogLevel, keyShutdownTimeout, keyDatabaseURL, keyTestDatabaseURL}
+
+// databaseURLKeys are the only parameters EARLII_DATABASE_URL may carry.
+// Anything else (service, servicefile, passfile, options, target_session_attrs,
+// ...) is rejected before pgx reads files or resolves hosts, so a pasted URL
+// can't redirect the connection or change session settings behind our back.
+var databaseURLKeys = []string{
+	"host", "port", "user", "password", "dbname",
+	"sslmode", "sslrootcert", "connect_timeout", "application_name",
+	"pool_max_conns", "pool_min_conns", "pool_max_conn_lifetime", "pool_max_conn_idle_time",
+}
+
+// pgxEnv lists the variables pgx v5.11.0 reads in pgconn.ParseConfig
+// (parseEnvSettings). Re-check it when upgrading pgx.
+var pgxEnv = []string{
+	"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGPASSFILE", "PGAPPNAME",
+	"PGCONNECT_TIMEOUT", "PGSSLMODE", "PGSSLKEY", "PGSSLCERT", "PGSSLSNI", "PGSSLROOTCERT",
+	"PGSSLPASSWORD", "PGSSLNEGOTIATION", "PGTARGETSESSIONATTRS", "PGSERVICE", "PGSERVICEFILE",
+	"PGTZ", "PGOPTIONS", "PGMINPROTOCOLVERSION", "PGMAXPROTOCOLVERSION", "PGCHANNELBINDING",
+	"PGREQUIREAUTH",
+}
+
+// Secret is a configuration value that must never be printed. Every fmt verb
+// and slog show a placeholder; Reveal returns the value for the one place that
+// needs it.
+type Secret string
+
+const redacted = "[redacted]"
+
+// Reveal returns the secret value.
+func (s Secret) Reveal() string { return string(s) }
+
+// String implements fmt.Stringer, which also covers %v, %+v, %s and %q.
+func (Secret) String() string { return redacted }
+
+// GoString implements fmt.GoStringer, which covers %#v.
+func (Secret) GoString() string { return redacted }
+
+// LogValue implements slog.LogValuer.
+func (Secret) LogValue() slog.Value { return slog.StringValue(redacted) }
+
+// MarshalText implements encoding.TextMarshaler. slog's JSON handler encodes a
+// whole Config with encoding/json, which ignores String and LogValue on
+// fields but honours this.
+func (Secret) MarshalText() ([]byte, error) { return []byte(redacted), nil }
 
 // Config is the validated process configuration.
 type Config struct {
-	Env      Env
-	HTTPAddr string
-	LogLevel slog.Level
+	Env Env
+	// DatabaseURL is the Postgres connection URL (pgx syntax, URL or
+	// keyword/value form). In prod it must verify the server's certificate.
+	DatabaseURL Secret
+	HTTPAddr    string
+	LogLevel    slog.Level
 	// ShutdownTimeout bounds the whole graceful drain after SIGINT/SIGTERM.
 	ShutdownTimeout time.Duration
 	// UnknownKeys are EARLII_* variables this build doesn't recognise. Outside
@@ -74,6 +129,15 @@ func Load(environ []string) (Config, error) {
 		errs = append(errs, fmt.Errorf("%s: required (dev or prod)", keyEnv))
 	default:
 		errs = append(errs, fmt.Errorf("%s: must be dev or prod", keyEnv))
+	}
+
+	if v := vars[keyDatabaseURL]; v != "" {
+		if err := validateDatabaseURL(v, cfg.Env == Prod); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", keyDatabaseURL, err))
+		}
+		cfg.DatabaseURL = Secret(v)
+	} else {
+		errs = append(errs, fmt.Errorf("%s: required (a postgres:// URL)", keyDatabaseURL))
 	}
 
 	if v := vars[keyHTTPAddr]; v != "" {
@@ -106,6 +170,15 @@ func Load(environ []string) (Config, error) {
 				keyShutdownTimeout, maxShutdownTimeout))
 		}
 		cfg.ShutdownTimeout = d
+	}
+
+	// pgx reads these from the process environment for anything the URL
+	// leaves out, past the key allowlist. Windows treats env names
+	// case-insensitively, hence ToUpper.
+	for _, kv := range environ {
+		if k, _, ok := strings.Cut(kv, "="); ok && slices.Contains(pgxEnv, strings.ToUpper(k)) {
+			errs = append(errs, fmt.Errorf("%s: not supported; put every connection setting in %s", k, keyDatabaseURL))
+		}
 	}
 
 	for k := range vars {
@@ -168,6 +241,41 @@ func validateAddr(addr string, prod bool) error {
 		return errors.New("port 0 (a random port) is not allowed in prod")
 	}
 	return nil
+}
+
+// validateDatabaseURL checks the URL the way pgx will read it. The parser's
+// own error is dropped, not wrapped: it quotes the input and redacts the
+// password only on a best-effort basis.
+//
+// In prod the parsed result must use TLS that verifies the server on every
+// host it may try. Checking the parsed config rather than the string also
+// catches the ssl=true alias, a repeated sslmode, a missing sslmode (libpq's
+// default, prefer, falls back to plaintext) and PGSSLMODE in the environment.
+func validateDatabaseURL(url string, prod bool) error {
+	pc, err := pgconn.ParseConfigWithOptions(url, pgconn.ParseConfigOptions{ConnStringAllowedKeys: databaseURLKeys})
+	if err != nil {
+		return errors.New("must be a valid Postgres URL using only host, port, user, password, dbname, " +
+			"sslmode, sslrootcert, connect_timeout, application_name and pool_* parameters")
+	}
+	if !prod {
+		return nil
+	}
+	if !verifiesServer(pc.TLSConfig) || slices.ContainsFunc(pc.Fallbacks, func(f *pgconn.FallbackConfig) bool {
+		return !verifiesServer(f.TLSConfig)
+	}) {
+		return errors.New("must use sslmode=verify-full (or verify-ca with sslrootcert) in prod")
+	}
+	return nil
+}
+
+// verifiesServer reports whether c is TLS that authenticates the server.
+// verify-full checks the chain and the host name (InsecureSkipVerify unset).
+// pgx implements verify-ca with InsecureSkipVerify and a custom
+// VerifyPeerCertificate that checks the chain only, so it counts only with a
+// pinned CA (sslrootcert, which sets RootCAs): against the system roots, any
+// public certificate for any host would pass. Plain require checks nothing.
+func verifiesServer(c *tls.Config) bool {
+	return c != nil && (!c.InsecureSkipVerify || (c.VerifyPeerCertificate != nil && c.RootCAs != nil))
 }
 
 // parsePort accepts plain decimal digits only: no sign, no leading zeros and

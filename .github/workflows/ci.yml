@@ -35,6 +35,35 @@ jobs:
       - run: task doctor
       - run: task check
 
+  # DB integration tests (D-10, ADR-0005): a service container, so Linux only.
+  # The check jobs skip them (no database running there).
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: earlii
+          POSTGRES_PASSWORD: earlii-ci-only
+          POSTGRES_DB: earlii
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U earlii -d earlii"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      EARLII_TEST_DATABASE_URL: postgres://earlii:earlii-ci-only@127.0.0.1:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
+      - run: task test:integration REQUIRE_DB=1
+
   handoff:
     name: handoff
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
