@@ -1,6 +1,7 @@
 // @vitest-environment node
 // `task dev:web:lan` exposes the Vite dev server to the local network. These tests start the real
 // server from vite.config.ts and attack it the way another device on the same Wi-Fi could.
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { fileURLToPath } from "node:url";
 import { createServer, normalizePath, type ViteDevServer } from "vite";
@@ -9,10 +10,21 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const appRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
+// The private docs are gitignored, so CI has none to attack. Plant look-alikes inside a folder the
+// server is allowed to serve (the app's node_modules, also gitignored): only the deny patterns can
+// refuse them, so these prove fs.deny on every machine.
+const probeRoot = `${appRoot}node_modules/.earlii-deny-probe`;
+const probeMarker = "earlii-deny-probe: this text must never be served";
+const probes = [`${probeRoot}/docs/SPEC.md`, `${probeRoot}/docs/learning/README.md`];
+
 let server: ViteDevServer;
 let port: number;
 
 beforeAll(async () => {
+  for (const file of probes) {
+    mkdirSync(file.slice(0, file.lastIndexOf("/")), { recursive: true });
+    writeFileSync(file, probeMarker);
+  }
   server = await createServer({
     root: appRoot,
     configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
@@ -27,6 +39,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await server?.close();
+  rmSync(probeRoot, { recursive: true, force: true });
 });
 
 function get(path: string, host = `127.0.0.1:${port}`): Promise<number> {
@@ -62,8 +75,14 @@ describe("dev server", () => {
   it("refuses files elsewhere in the repo through /@fs/", async () => {
     expect(await get(fsUrl(`${repoRoot}AGENTS.md`))).toBe(403);
     expect(await get(fsUrl(`${repoRoot}docs/HANDBOOK.md`))).toBe(403);
-    expect(await get(fsUrl(`${repoRoot}docs/learning/README.md`))).toBe(403);
-    expect(await get(fsUrl(`${repoRoot}docs/SPEC.md`))).toBe(403);
+  });
+
+  it("refuses the private docs' paths even inside an allowed folder (fs.deny)", async () => {
+    for (const file of probes) {
+      const { status, body } = await fetchRaw(fsUrl(file), `127.0.0.1:${port}`);
+      expect(status, file).toBe(403);
+      expect(body, file).not.toContain(probeMarker);
+    }
   });
 
   it("refuses path traversal out of the app root", async () => {

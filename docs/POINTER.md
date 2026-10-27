@@ -47,6 +47,7 @@
 - TS aliases: copy `scripts/test/fixtures/ts-alias/`. Biome rejects `../` only under `apps/**/src` and `packages/**/src`. Biome rewrites unicode escapes in JS strings: use `String.fromCodePoint(0xa7)`.
 - Web: `routeTree.gen.ts` is regenerated whenever Vite or Vitest runs. Commit it with any route change (`build:web` fails if it's stale). Don't put non-route files in `src/routes/`. Vitest's jsdom AbortSignal isn't accepted by Node's fetch: test fetch code with `// @vitest-environment node`.
 - shadcn CLI 4.23.0: `init` hangs on a preset prompt without `--preset`, and swaps `cn()` to a third-party package. Use `add` only, and review what it copies (HANDBOOK section 11).
+- Tests must never depend on the gitignored private files (SPEC, `docs/learning/`): CI has none, and a missing file can pass or fail for the wrong reason (P0-03 CI run 1). Plant look-alike fixtures instead, as `apps/web/src/dev-server.test.ts` does.
 - In Node scripts, `String.replace(a, b)` treats `` $` ``, `$'` and `$&` in `b` as patterns, which bites when `b` is Markdown with backticks. Pass `() => b`.
 
 ## Learning
