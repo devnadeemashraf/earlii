@@ -22,9 +22,11 @@ tasks:
       - node scripts/doctor.mjs
 
   check:
-    desc: Everything CI runs (lint, then tests)
+    desc: Everything CI runs (lint, the production web build, then tests)
     cmds:
       - task: lint
+      # Before test: Vitest regenerates the route tree, which would hide a stale committed one.
+      - task: build:web
       - task: test
 
   fmt:
@@ -128,6 +130,26 @@ tasks:
         else
           echo "skip: no web app yet (P0-03)"
         fi
+
+  build:web:
+    desc: Production web build; fails on a stale route tree or initial JS over budget
+    cmds:
+      - |
+        if [ -d apps/web ]; then
+          node scripts/check-web-build.mjs
+        else
+          echo "skip: no web app yet (P0-03)"
+        fi
+
+  dev:web:
+    desc: Run the web app on localhost:5173 (proxies /readyz to the API on :8080)
+    cmds:
+      - pnpm --filter ./apps/web dev
+
+  dev:web:lan:
+    desc: Like dev:web, but reachable from your phone on the same Wi-Fi (prints the LAN URL)
+    cmds:
+      - pnpm --filter ./apps/web dev --host
 
   dev:api:
     desc: Run the API locally on :8080 (Ctrl-C drains and stops it)

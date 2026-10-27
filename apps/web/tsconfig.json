@@ -1,0 +1,13 @@
+{
+  "//": "Copied from scripts/test/fixtures/ts-alias (ADR-0004), plus the DOM and JSX settings a React app needs.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

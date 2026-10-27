@@ -45,7 +45,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-01-1 *explain it*: how the guards turn policy into enforcement.
 
 ### P0-02 · Go skeleton: one binary, many modes
-- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** in review (#2)
+- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** done (#2)
 - **Acceptance:**
   - `go.work` plus the `backend/` module;
   - `earlii api|worker|scheduler`;
@@ -59,7 +59,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-02-1 *implement*: graceful shutdown with `signal.NotifyContext`, `http.Server.Shutdown` and `errgroup`. This covers context cancellation, the core of all Go concurrency.
 
 ### P0-03 · Web skeleton
-- **Spec:** 3, O [MVP] · **Size:** M · **Status:** todo
+- **Spec:** 3, O [MVP] · **Size:** M · **Status:** in review (#3)
 - **Acceptance:**
   - `apps/web`: Vite + React + TS, TanStack Router (file routes) and Query, Tailwind, shadcn/ui initialised;
   - the path alias follows the fixture exactly: `tsconfig.json` extends `tsconfig.base.json` with `"paths": { "@/*": ["./src/*"] }`, and `vite.config.ts` sets `resolve.tsconfigPaths: true` (ADR-0004). shadcn's `components.json` aliases use `@/`;
@@ -68,7 +68,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - a PWA manifest;
   - `test:web` runs for real.
 - **Tests:** a render test, and a route test with a mocked loader.
-- 🧪 Run `task dev:web` and open it on your phone over LAN. Confirm there's no blank flash.
+- 🧪 Run `task dev:api` and `task dev:web:lan`, then open the printed Network URL on your phone (same Wi-Fi). Confirm there's no blank flash. (`task dev:web` is the localhost-only default.)
 - **Study:** P0-03-1 *explain it*: file-based routing with codegen vs a hand-written route tree.
 
 ### P0-04 · Local stack, migrations, sqlc
@@ -333,7 +333,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | First feed after first open | < 60 s | SPEC section 4 |
 | Posted → alert | busy < 20 min · normal < 70 min · quiet same day | SPEC section 4 |
 | AI draft first token | ≤ 1.5 s | SPEC section 4 |
-| Web initial JS | ≤ 170 KB gzip | our target; revisit at P0-03 |
+| Web initial JS | ≤ 170 kB gzip (1 kB = 1000 bytes) | our target; gated by `task build:web` since P0-03 (about 113 kB at P0-03) |
 | Docker image | ≤ 30 MB | our target |
 | API / worker memory | ≤ 256 MB RSS each | our target; fits small free-tier instances |
 | Fetch politeness | ≤ 1 req/s per host by default; honour crawl-delay | SPEC section Q |
@@ -413,6 +413,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-27 | P0-02 merged (#2). P0-03 in review (#3): web skeleton, PWA manifest, the bundle budget gate. |
 | 2026-10-27 | **Mode: build** (owner decision). The AI builds every item; each PR gets a private study guide with labs in `docs/learning/` (gitignored). The P0-02 drain is implemented in #2, and the old LEARN exercises were folded into the P0-01 and P0-02 guides. |
 | 2026-10-27 | P0-01 merged (#1). P0-02 in review (#2): Go skeleton, config, probes, modes; the graceful drain is exercise P0-02-1 (stub + skipped tests). |
 | 2026-10-27 | Review feedback on #1: TS path alias foundation (ADR-0004); section sign banned; SPEC and scaffold kept local; SCP-01, SCP-02 and SCP-03 approved. |
