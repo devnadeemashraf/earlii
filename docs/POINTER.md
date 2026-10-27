@@ -39,7 +39,7 @@ _(empty)_
 - Windows 11 dev box. Claude Code hooks run in Git Bash; Task uses its own built-in shell, so Taskfile commands are POSIX-style everywhere.
 - Tools come from `mise.toml`. Activate mise in PowerShell (docs/SETUP.md section 2), or prefix commands with `mise exec --`. **That includes `git commit`:** without mise on PATH, lefthook's `go-fmt` and `gitleaks` steps fail with "command not found".
 - The multi-module loops in `Taskfile.yml` (`go list -m` over `go.work`) are verified on Windows, including `cd` into a `C:\...` path.
-- No gcc on this box (`CGO_ENABLED=0`), so local Go tests run without `-race`. Linux CI runs with it. Whether `windows-latest` has cgo is UNVERIFIED: check the CI log for the "cgo is off" note.
+- No gcc on this box (`CGO_ENABLED=0`), so local Go tests run without `-race`. Both CI runners (Linux and Windows) run with it (verified on #2).
 - Go test binaries take about 5–10 s per package to start on this box (probably antivirus scanning new executables). The tests themselves take milliseconds.
 - gitleaks flags a line holding `api` next to a `KEY=value` literal. Split the line; don't allow-list it.
 - golangci-lint's errcheck also flags an `error` received from a channel and dropped (`case <-errCh:`). Bind it and discard it explicitly.

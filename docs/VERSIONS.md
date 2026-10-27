@@ -90,7 +90,7 @@ Every version and external fact the project relies on, with the date it was veri
 | Go on Windows: with `signal.Notify`, CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT and CTRL_SHUTDOWN_EVENT arrive as `syscall.SIGTERM`; Ctrl-C arrives as `os.Interrupt` | 2026-10-27 | `go doc os/signal` (Go 1.27.3) |
 | `signal.NotifyContext`: `context.Cause` on the returned context describes the signal | 2026-10-27 | `go doc os/signal.NotifyContext` (Go 1.27.3) |
 | `http.Server.Shutdown` closes listeners, then idle connections, then waits for active ones until its ctx expires; `Close` cuts all non-hijacked connections at once | 2026-10-27 | `go doc net/http.Server.Shutdown`, `go doc net/http.Server.Close` (Go 1.27.3) |
-| The Go race detector needs cgo; this Windows dev box has `CGO_ENABLED=0` (no gcc), so `task test:go` adds `-race` only when cgo is on | 2026-10-27 | `go env CGO_ENABLED` locally |
+| The Go race detector needs cgo; this Windows dev box has `CGO_ENABLED=0` (no gcc), so `task test:go` adds `-race` only when cgo is on. Both CI runners (`ubuntu-latest`, `windows-latest`) have cgo on and run with `-race` | 2026-10-27 | `go env CGO_ENABLED` locally; PR #2 CI logs (no "cgo is off" note on either job) |
 | gitleaks 8.30.1 `generic-api-key` flags a line holding the word `api` and a `KEY=value` string literal on the same line. Split the line rather than allow-listing | 2026-10-27 | `gitleaks git --staged -v` locally |
 
 ## UNVERIFIED (check before relying on them)
@@ -99,7 +99,6 @@ Every version and external fact the project relies on, with the date it was veri
 | :-- | :-- |
 | Grafana Cloud free tier: ~10k active metric series, 50 GB logs/traces, 14-day retention (secondary sources only) | https://grafana.com/pricing, at P0-07 / P2-17 |
 | India commercial SMS requires TRAI DLT sender/template registration (affects SCP-01 phone OTP) | TRAI / SMS-provider documentation, before any phone-OTP work |
-| `-race` works on the `windows-latest` CI runner (cgo depends on gcc being on PATH there) | The `check (windows-latest)` job log of the P0-02 PR: look for the "cgo is off" note |
 | Dependabot supports pnpm 12 lockfiles | Watch the first monthly Dependabot run; see the Insights → Dependency graph → Dependabot tab |
 | Greenhouse Job Board API and Lever Postings API: public access and terms allow polling | The official API docs and terms, recorded in LEGAL.md at P1-04 / P1-05 |
 | Keka, Darwinbox, Zoho Recruit public careers feeds and terms (SPEC section 8) | Provider docs and terms (D-08) |
