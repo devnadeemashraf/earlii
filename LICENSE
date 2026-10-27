@@ -1,0 +1,50 @@
+Earlii Proprietary License
+
+Copyright (c) 2026 Nadeem Ashraf. All rights reserved.
+
+This repository and everything in it, including source code, documentation,
+designs, design tokens, data, prompts, evaluation sets and other materials
+(together, the "Software"), is the exclusive property of Nadeem Ashraf
+(the "Owner").
+
+1. No licence granted.
+   Except as expressly stated in section 2, no right or licence is granted to
+   you, by implication, estoppel or otherwise, to use, run, copy, modify,
+   merge, publish, distribute, sublicense, sell, host, offer as a service, or
+   create derivative works of the Software, in whole or in part, or to use
+   the Software or any part of it to train or evaluate machine-learning models.
+
+2. Viewing only.
+   Where this repository is hosted publicly, you may view its contents. Any
+   copying that the hosting platform's terms of service strictly require
+   (for example, forking within GitHub under the GitHub Terms of Service) is
+   permitted only to the extent those terms require it, and such copies may
+   not be used, run, modified or distributed for any other purpose.
+
+3. No external contributions.
+   The Owner does not accept contributions unless agreed in writing in
+   advance. Submitting an issue, pull request or suggestion does not give you
+   any right in the Software.
+
+4. Third-party components.
+   Third-party software, fonts, data or other materials included in or
+   referenced by the Software remain subject to their own licences, which
+   govern those components.
+
+5. Trademarks.
+   "Earlii" and associated names, logos and designs are not licensed under
+   any part of this document.
+
+6. No warranty.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+
+7. Limitation of liability.
+   IN NO EVENT SHALL THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+For permission requests beyond these terms, contact the Owner via
+https://github.com/devnadeemashraf.
