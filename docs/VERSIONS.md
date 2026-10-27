@@ -34,13 +34,12 @@ Every version and external fact the project relies on, with the date it was veri
 | Module | Version | Verified | Source |
 | :-- | :-- | :-- | :-- |
 | Go directive | 1.27.3 (matches `mise.toml`) | 2026-10-27 | `go mod init` with the pinned toolchain |
-| _(no third-party modules yet: the standard library covers P0-02)_ | | | |
+| golang.org/x/sync (errgroup) | v0.24.0 | 2026-10-27 | `go list -m -json golang.org/x/sync@latest` (published 2026-09-23); used by `httpserver.Serve` (P0-02) |
 
 ## Candidate versions (verified latest; pin when the item starts)
 
 | Package | Latest | For | Verified | Source |
 | :-- | :-- | :-- | :-- | :-- |
-| golang.org/x/sync (errgroup) | v0.24.0 | P0-02-1 exercise (the owner adds it with `go get`) | 2026-10-27 | `go list -m -json golang.org/x/sync@latest` (published 2026-09-23); verified against the exercise tests |
 | buf | 1.75.0 | P0-05 | 2026-10-27 | `mise latest buf`; GitHub releases |
 | connect-go | v2.0.2 (`connectrpc.com/connect/v2`) | P0-05 | 2026-10-27 | `go list -m connectrpc.com/connect/v2@latest`. Note: v1 is still `connectrpc.com/connect` v1.21.1. Pick deliberately |
 | google.golang.org/protobuf | v1.36.12 | P0-05 | 2026-10-27 | Go module proxy |

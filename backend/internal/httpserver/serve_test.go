@@ -13,17 +13,6 @@ import (
 	"github.com/devnadeemashraf/earlii/backend/internal/httpserver"
 )
 
-// EXERCISE P0-02-1: set this to true when you start, so these tests run.
-// It must be true before the exercise is graded.
-const exerciseStarted = false
-
-func requireExercise(t *testing.T) {
-	t.Helper()
-	if !exerciseStarted {
-		t.Skip("EXERCISE P0-02-1 not started: set exerciseStarted = true in serve_test.go")
-	}
-}
-
 // slack is how long past its deadline Serve may take to return. It is generous
 // because CI machines are slow; the tests fail on hangs, not on milliseconds.
 const slack = 2 * time.Second
@@ -70,7 +59,6 @@ func (r *running) wait(t *testing.T, within time.Duration) error {
 // Happy path: a request that is running when the signal arrives finishes
 // normally, and Serve then returns nil.
 func TestServeDrainsInFlightRequest(t *testing.T) {
-	requireExercise(t)
 	started, release := make(chan struct{}), make(chan struct{})
 	r := start(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		close(started)
@@ -124,7 +112,6 @@ func TestServeDrainsInFlightRequest(t *testing.T) {
 // Edge: a handler that never finishes is cut off at the drain deadline, so a
 // stuck request can't stop the process from exiting before SIGKILL.
 func TestServeForcesCloseAfterDrainTimeout(t *testing.T) {
-	requireExercise(t)
 	started, exited := make(chan struct{}), make(chan struct{})
 	const drain = 200 * time.Millisecond
 	r := start(t, http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
@@ -161,7 +148,6 @@ func TestServeForcesCloseAfterDrainTimeout(t *testing.T) {
 // Sad path: if serving fails (here, a closed listener), Serve reports it at
 // once instead of waiting for a signal that may never come.
 func TestServeReturnsListenerError(t *testing.T) {
-	requireExercise(t)
 	ln := listen(t)
 	_ = ln.Close()
 
@@ -181,7 +167,6 @@ func TestServeReturnsListenerError(t *testing.T) {
 
 // Edge: the signal arrives before Serve even starts.
 func TestServeAlreadyCanceled(t *testing.T) {
-	requireExercise(t)
 	ln := listen(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -206,7 +191,6 @@ func TestServeAlreadyCanceled(t *testing.T) {
 // Edge: idle keep-alive connections don't count as in flight. Shutdown closes
 // them straight away instead of waiting out the drain window.
 func TestServeIdleKeepAliveDoesNotDelayShutdown(t *testing.T) {
-	requireExercise(t)
 	const drain = 5 * time.Second
 	r := start(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, "ok")
@@ -232,7 +216,6 @@ func TestServeIdleKeepAliveDoesNotDelayShutdown(t *testing.T) {
 // Abuser: a slowloris client sends half a request and stalls. It must not hold
 // the process past the drain deadline.
 func TestServeSlowlorisCannotBlockShutdown(t *testing.T) {
-	requireExercise(t)
 	const drain = 200 * time.Millisecond
 	r := start(t, http.NotFoundHandler(), drain)
 
