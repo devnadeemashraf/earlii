@@ -12,7 +12,7 @@ This is the **single source of agent instructions** for Earlii. Tool-specific fi
 
 **Sources of truth, in order:** SPEC > ROADMAP > POINTER > HANDBOOK. If they disagree, the higher one wins. Raise the conflict in POINTER's "Open questions for the human".
 
-**`docs/SPEC.md` and `docs/project-scaffold-claude.md` are private and local-only.** Both are gitignored and never committed, quoted at length in commits or PRs, or published. If SPEC is missing (a fresh clone or a cloud session), work from ROADMAP and say so.
+**`docs/SPEC.md`, `docs/project-scaffold-claude.md` and `docs/learning/` are private and local-only.** All three are gitignored and never committed, quoted at length in commits or PRs, or published. If SPEC is missing (a fresh clone or a cloud session), work from ROADMAP and say so. If `docs/learning/` is missing, skip its updates and say so in the report.
 
 ## 2. Non-negotiable rules
 
@@ -59,24 +59,25 @@ Every new fact goes into `docs/VERSIONS.md` with the date and a source link.
 7. **Run `task check`** and fix until it's green. Never weaken a test.
 8. **Bugs from earlier PRs: don't widen scope.** Add a `BP-xxx` entry with evidence (file:line or a failing test) to POINTER's fix-first queue. The next session fixes it as a side-blueprint PR.
 9. **Self-review** with the reviewer subagent (`/review`) and fix what it finds.
-10. **Hand off** (`/handoff`). Update POINTER, the ROADMAP status and HANDBOOK, plus VERSIONS and ADRs if touched. In LEARN mode, also write the decision story (`/story`) and update `docs/learning/SKILLS.md`.
+10. **Hand off** (`/handoff`). Update POINTER, the ROADMAP status and HANDBOOK, plus VERSIONS and ADRs if touched. Then write the PR's private study guide (`/study-guide`, section 5).
 11. **Commit** (Conventional Commits, no AI trailers), **push** the branch, and **open the PR** with the template. Never merge: the owner merges.
 12. **Report in at most 8 lines:** what changed; test results; manual test needed (yes/no, with exact steps); risks; the next item.
 
-## 5. LEARN mode (active: standard, 1–2 exercises per PR)
+## 5. BUILD mode with private study guides (active since 2026-10-27)
 
-The owner is strong in TypeScript/React and new to Go. The goal is a shipped product **and** an engineer who can explain every decision in an interview.
+The owner is strong in TypeScript/React and new to Go. The goal is to **ship fast**, and still end up an engineer who can write, debug and optimise Go without AI, and explain every decision in an interview.
 
-- **Exercises (1–2 per PR)** are carved out of the real work, never toy problems. Prefer skills that are core to _this_ project and in demand beyond CRUD: Go concurrency and cancellation, rate limiting and backoff, idempotency and exactly-once delivery, job queues, change detection and hashing, near-duplicate detection, Postgres indexing and query plans, search, streaming, observability, LLM evals, security. Write the stub marked `EXERCISE <ID>-<n>` with failing tests, and the exercise file `docs/learning/exercises/<ID>-<n>-<slug>.md` (format in `docs/learning/exercises/README.md`).
-- **Everything else** (scaffolding, glue, config) the AI builds, but every notable decision gets a **decision story** in `docs/learning/STORIES.md` and the PR body:
-  - **Problem / bottleneck:** what was slow, risky or unclear, with evidence.
-  - **Options:** 2–3, each with its trade-offs.
-  - **Chose [Y] because [A, B, C]; skipped [Z] because [A, B, C].**
-  - **Result:** a measured number (benchmark, test, profile) from a committed command, or "not measured, because …". **Never invent numbers.**
-  - **Interview soundbite** (at most 3 lines): "I found [X], so I did [Y] because [A, B, C]. I skipped [Z] because […]. It improved [metric] by [M]%."
-- **Review (mentor subagent):** run the tests and `task check` first, then score with the 1–4 rubric (correctness, complexity with the actual Big-O, tests, readability, performance, security, idiomatic use). Socratic first. Show a reference solution only after the second failed attempt, or on request.
-- **"skip"** means the AI completes the exercise, logs it as skipped in SKILLS.md and reschedules it.
-- **Mode switches** ("mode: build", "mode: learn intense") are recorded in POINTER.
+- **The AI builds everything**, to the bar of a principal engineer: no exercise stubs, no skipped tests, no work left for the owner on the critical path. Every PR is complete when it is opened.
+- **Every PR gets a private study guide** in `docs/learning/<ID>-<slug>/` (gitignored, never committed; `/study-guide`). It assumes no prior knowledge and contains:
+  - **Concepts from zero:** every language feature, library, protocol, pattern and tool the PR uses, explained before it is used, with where the analogy to TypeScript breaks;
+  - **Walkthrough:** the PR's code, file by file, explaining what each part does and why it is written that way;
+  - **Under the hood:** how the standard library or tool actually does it, verified against the pinned source (for example `$(go env GOROOT)/src/net/http`), with file and function names;
+  - **Decisions:** problem, 2–3 options, the choice and what was skipped, the result (measured with a re-runnable command, or "not measured, because …"; **never invent numbers**), and a 3-line interview soundbite;
+  - **Debug and optimise:** how to break this code, observe it (logs, debugger, race detector, pprof) and fix it;
+  - **Interview prep:** likely questions with model answers, collapsed;
+  - **Labs:** hands-on exercises with failing tests in a self-contained module beside the guide (its own `go.mod` and `go.work`, so it stays out of the product's workspace), rebuilding the PR's core ideas from scratch. Reference solutions sit in a separate file.
+- **The mentor subagent** quizzes the owner on a guide, reviews lab attempts (tests first, then the 1–4 rubric, Socratic first), and explains concepts on request. Nothing it does blocks a PR.
+- **Mode switches** ("mode: build", "mode: learn") are recorded in POINTER.
 
 ## 6. Commands
 
@@ -101,7 +102,7 @@ The owner is strong in TypeScript/React and new to Go. The goal is a shipped pro
 - Leave a `TODO` without a roadmap or bug ID: `// TODO(P1-07): …` or `// TODO(BP-003): …`.
 - Add AI attribution of any kind.
 - Use the section sign (U+00A7), anywhere.
-- Commit or publish `docs/SPEC.md` or `docs/project-scaffold-claude.md`.
+- Commit or publish `docs/SPEC.md`, `docs/project-scaffold-claude.md` or anything under `docs/learning/`.
 - Make network calls to job boards in tests: use recorded fixtures.
 
 ## 8. Checklists for tools without hooks

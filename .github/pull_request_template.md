@@ -10,7 +10,7 @@
 
 ## Why this way (at most 5 lines, for anything non-obvious)
 
-## Decision brief (LEARN mode, copied from docs/learning/STORIES.md)
+## Decision brief (one per notable decision)
 
 - **Problem / bottleneck:**
 - **Options:**
@@ -38,6 +38,6 @@
 - [ ] `docs/HANDBOOK.md` updated for new modules or flows
 - [ ] `docs/VERSIONS.md` / ADRs updated if touched
 - [ ] Earlier bugs logged as BP-xxx, not fixed here
-- [ ] LEARN: exercise(s) created or graded, and `docs/learning/SKILLS.md` updated
+- [ ] Private study guide written in `docs/learning/<ID>-<slug>/` (local only, never committed)
 
 ## Risks

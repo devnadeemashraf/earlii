@@ -108,11 +108,13 @@ tasks:
       - node --test "scripts/test/*.test.mjs"
 
   test:go:
-    desc: Go tests
+    desc: Go tests (with the race detector where cgo is available, e.g. Linux CI)
     cmds:
       - |
         if [ -f go.work ]; then
-          for d in $(go list -m -f '{{"{{"}}.Dir{{"}}"}}'); do (cd "$d" && go test ./...); done
+          race=""
+          if [ "$(go env CGO_ENABLED)" = "1" ]; then race="-race"; else echo "note: cgo is off, so tests run without -race"; fi
+          for d in $(go list -m -f '{{"{{"}}.Dir{{"}}"}}'); do (cd "$d" && go test $race ./...); done
         else
           echo "skip: no Go modules yet (P0-02)"
         fi
@@ -126,6 +128,15 @@ tasks:
         else
           echo "skip: no web app yet (P0-03)"
         fi
+
+  dev:api:
+    desc: Run the API locally on :8080 (Ctrl-C drains and stops it)
+    dir: backend
+    env:
+      EARLII_ENV: dev
+      EARLII_LOG_LEVEL: debug
+    cmds:
+      - go run ./cmd/earlii api
 
   handoff:
     desc: Code changed => POINTER changed; new module => HANDBOOK changed

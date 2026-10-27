@@ -1,6 +1,6 @@
 ---
 name: perf-check
-description: Measure performance against the budgets in docs/ROADMAP.md (Go benchmarks with benchstat, query plans, bundle size, API latency) and report regressions. Use on any hot-path change, before writing a decision story with numbers, or when the user says "perf check".
+description: Measure performance against the budgets in docs/ROADMAP.md (Go benchmarks with benchstat, query plans, bundle size, API latency) and report regressions. Use on any hot-path change, before claiming a measured result in a PR or study guide, or when the user says "perf check".
 argument-hint: "[area: go | sql | web | api]"
 ---
 
@@ -11,4 +11,4 @@ Measure, don't guess. Every number you report must come from a command you ran.
 - **web** (skip if there's no web app yet): record the production build size per route chunk and compare it with the budget. Run Lighthouse on the PWA once that item lands.
 - **api:** p50/p95 latency of the touched RPCs under a small fixed load, compared with SPEC section 4 budgets.
 
-Report a table (metric, budget, before, after, delta %) plus the exact commands. Feed the numbers into `/story`.
+Report a table (metric, budget, before, after, delta %) plus the exact commands. Put the numbers in the PR decision brief and the study guide (`/study-guide`).

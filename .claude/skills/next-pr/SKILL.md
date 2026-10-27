@@ -15,13 +15,13 @@ Run THE PR LOOP from AGENTS.md section 4 for `$ARGUMENTS` (if empty: the first F
 4. **Design**
    - For M items, or anything touching the data model, security, concurrency or hot paths: run the `architect` subagent for 2–3 options and the `red-team` subagent against the leading option.
    - Pick one, and write an ADR (docs/adr/) if the choice will last.
-5. **LEARN mode:** pick 1–2 exercises from this item's real work (AGENTS.md section 5, and the ROADMAP Curriculum map). Use `/exercise` to create the stub, failing tests and exercise file. Build everything else yourself.
+5. **Build mode:** build the whole item yourself, to the bar of a principal engineer (AGENTS.md section 5). Note the concepts, internals and decisions worth teaching as you go: they feed the study guide in step 11.
 6. **Tests first:** happy, sad, edge and abuser paths. Run them and confirm they fail for the right reason.
 7. **Implement** the smallest change that passes, following docs/CODING_STANDARDS.md.
 8. **Run `task check`** until it's green. Never weaken a test.
 9. **Earlier bugs:** record them as `BP-xxx` in POINTER's FIX-FIRST QUEUE with evidence. Don't fix them here.
 10. **Review:** run `/review` and fix the findings.
-11. **Hand off:** run `/handoff`, and `/story` for each notable decision.
+11. **Hand off:** run `/handoff`, then `/study-guide` (private: `docs/learning/` is never committed). Put a short decision brief for each notable decision in the PR body.
 12. **Commit and open the PR**
     - Commit with Conventional Commits and no AI trailers.
     - `git push -u origin HEAD`.

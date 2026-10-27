@@ -3,7 +3,6 @@
 
 export const POINTER = "docs/POINTER.md";
 export const HANDBOOK = "docs/HANDBOOK.md";
-export const STORIES = "docs/learning/STORIES.md";
 
 /** Files that never count as "code": docs, root markdown and the licence. */
 export function isDocOnly(path) {
@@ -63,12 +62,6 @@ export function checkHandoff({ changes, baseFiles }) {
   if (newModules.length > 0 && !paths.has(HANDBOOK)) {
     errors.push(
       `New module(s) ${newModules.join(", ")} added but ${HANDBOOK} did not change. Document them in the repo map.`,
-    );
-  }
-
-  if (codeChanged && !paths.has(STORIES)) {
-    warnings.push(
-      `LEARN mode: no decision story in ${STORIES}. Add one unless this PR made no notable decision.`,
     );
   }
 

@@ -1,4 +1,4 @@
-# Automated dependency updates. Go modules are added in P0-02, when backend/go.mod exists.
+# Automated dependency updates.
 # Tool pins in mise.toml are bumped by the monthly recurring item R-01 (`mise outdated`).
 version: 2
 updates:
@@ -12,6 +12,18 @@ updates:
       include: scope
     groups:
       npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: "/backend"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      gomod-minor-patch:
         update-types: [minor, patch]
 
   - package-ecosystem: github-actions

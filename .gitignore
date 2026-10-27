@@ -48,3 +48,6 @@ pnpm-debug.log*
 # Private planning inputs: kept local, never published (owner decision 2026-10-27)
 docs/SPEC.md
 docs/project-scaffold-claude.md
+
+# Private per-PR study guides and labs: kept local, never published (owner decision 2026-10-27)
+docs/learning/

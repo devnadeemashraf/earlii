@@ -4,7 +4,7 @@ Phases from bootstrap to launch. Every item fits in **one PR of about 1–4 sess
 Sizes: **S** ≈ 1 session · **M** ≈ 2–4 sessions · **L** = an epic that must be split in a docs-only grooming PR before work starts.
 Status values: `todo` · `in progress` · `in review (#PR)` · `done (#PR)` · `blocked (D-xx)`.
 🧪 marks items the owner must test by hand; the exact check is listed.
-**LEARN** shows the exercise(s) carved out of the item. Exercise types: implement · bug hunt · optimise · test it · review it · design it · explain it.
+**Study** names what the item's private study guide (AGENTS.md section 5) goes deepest on, and the labs it builds. The AI builds the item itself; nothing on the critical path waits for the owner.
 
 Contents: [Timeline](#timeline) · [Phase 0](#phase-0--bootstrap) · [Phase 1](#phase-1--data-platform-mvp) · [Phase 2](#phase-2--personal-mvp) · [Phase 3](#phase-3--public-beta-epics) · [Phase 4](#phase-4--paid-launch-epics) · [Recurring](#recurring-items) · [Milestones](#milestones-and-exit-criteria) · [Budgets](#budgets) · [Risks](#top-risks) · [Decisions](#decisions) · [Spec change proposals](#spec-change-proposals) · [Curriculum map](#curriculum-map) · [Status log](#status-log)
 
@@ -12,7 +12,7 @@ Contents: [Timeline](#timeline) · [Phase 0](#phase-0--bootstrap) · [Phase 1](#
 
 ## Timeline
 
-This is an honest estimate at **~20 h/week**: about 8 sessions a week, roughly 5 of them going to items once LEARN-mode exercises, reviews and the unexpected are counted.
+This is an honest estimate at **~20 h/week**: about 8 sessions a week, roughly 5 of them going to items once study, reviews and the unexpected are counted. Build mode (since 2026-10-27) takes exercises off the critical path, so expect this to shorten; re-estimate at M0 (R-02).
 
 | Phase | Items | Sessions | Calendar |
 | :-- | :-: | :-: | :-- |
@@ -31,7 +31,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 **Goal:** the AI PR loop works end to end on an empty skeleton. That means CI is green, the hooks enforce the rules, and one request flows web → API → DB → job.
 
 ### P0-01 · Starter kit: docs, tooling, CI and AI harness
-- **Spec:** Z [MVP] · **Size:** M · **Status:** in review (#1)
+- **Spec:** Z [MVP] · **Size:** M · **Status:** done (#1)
 - **Acceptance:**
   - every kit document exists;
   - `task doctor` and `task check` are green on Windows and Linux CI;
@@ -42,10 +42,10 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - the banned character (the section sign) is rejected in files, commits, PR text and agent edits.
 - **Tests:** `scripts/test/*.test.mjs`, covering the guards, the commit-msg rule, the handoff rule, pins, the CLIs, the configs parsing, the alias fixture (`scripts/test/fixtures/ts-alias`) and the banned-character check.
 - 🧪 Run `task setup`, then `task check`. Try `git commit -m "bad message"` and confirm it's rejected. In Claude Code, ask it to `git push origin main` and confirm it's blocked.
-- **LEARN:** P0-01-1 *explain it*: how the guards turn policy into enforcement.
+- **Study:** P0-01-1 *explain it*: how the guards turn policy into enforcement.
 
 ### P0-02 · Go skeleton: one binary, many modes
-- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** todo
+- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** in review (#2)
 - **Acceptance:**
   - `go.work` plus the `backend/` module;
   - `earlii api|worker|scheduler`;
@@ -56,7 +56,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - the gomod entry added to Dependabot;
   - `fmt:go`, `lint:go` and `test:go` run for real.
 - **Tests:** config parsing (valid, missing, malformed); shutdown drains in-flight requests; health handlers.
-- **LEARN:** P0-02-1 *implement*: graceful shutdown with `signal.NotifyContext`, `http.Server.Shutdown` and `errgroup`. This covers context cancellation, the core of all Go concurrency.
+- **Study:** P0-02-1 *implement*: graceful shutdown with `signal.NotifyContext`, `http.Server.Shutdown` and `errgroup`. This covers context cancellation, the core of all Go concurrency.
 
 ### P0-03 · Web skeleton
 - **Spec:** 3, O [MVP] · **Size:** M · **Status:** todo
@@ -69,7 +69,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - `test:web` runs for real.
 - **Tests:** a render test, and a route test with a mocked loader.
 - 🧪 Run `task dev:web` and open it on your phone over LAN. Confirm there's no blank flash.
-- **LEARN:** P0-03-1 *explain it*: file-based routing with codegen vs a hand-written route tree.
+- **Study:** P0-03-1 *explain it*: file-based routing with codegen vs a hand-written route tree.
 
 ### P0-04 · Local stack, migrations, sqlc
 - **Spec:** 3, X, Z [MVP] · **Size:** M · **Status:** todo · **Blocked by:** D-07, D-10 (decided in the item's design step)
@@ -81,7 +81,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - `sqlc.yaml` with output in `gen/`;
   - DB integration tests run in CI.
 - **Tests:** migrations up from empty; re-running is a no-op; a sqlc query round-trip.
-- **LEARN:** P0-04-1 *design it*: an ADR on migration strategy (expand/contract, forward-only, locking).
+- **Study:** P0-04-1 *design it*: an ADR on migration strategy (expand/contract, forward-only, locking).
 
 ### P0-05 · Contracts: Protobuf + Connect
 - **Spec:** 3, Z [MVP] · **Size:** M · **Status:** todo
@@ -91,7 +91,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - `task gen` generates the Go server and the TS client;
   - the web app calls `Health`.
 - **Tests:** an in-process Connect handler test; a TS client test against a mock transport.
-- **LEARN:** P0-05-1 *implement*: a Connect interceptor that adds request IDs and structured access logs (the middleware pattern).
+- **Study:** P0-05-1 *implement*: a Connect interceptor that adds request IDs and structured access logs (the middleware pattern).
 
 ### P0-06 · One image, many containers
 - **Spec:** 3 Packaging, Z [MVP] · **Size:** S · **Status:** todo
@@ -101,7 +101,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - CI builds the image and scans it (Trivy) and lints the Dockerfile (hadolint);
   - the image is at most 30 MB.
 - **Tests:** a CI smoke test runs `earlii api` in the container and hits `/healthz`.
-- **LEARN:** P0-06-1 *optimise*: get the image under budget, and explain each layer.
+- **Study:** P0-06-1 *optimise*: get the image under budget, and explain each layer.
 
 ### P0-07 · Observability base
 - **Spec:** X [MVP] · **Size:** M · **Status:** todo
@@ -111,7 +111,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - trace context propagated from API → River job → worker;
   - local Grafana shows one trace spanning both.
 - **Tests:** an in-memory exporter asserts the parent/child spans across an enqueued job.
-- **LEARN:** P0-07-1 *implement*: carrying trace context through job args (sync vs async inter-service communication).
+- **Study:** P0-07-1 *implement*: carrying trace context through job args (sync vs async inter-service communication).
 
 ---
 
@@ -127,7 +127,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - sqlc queries;
   - a seed file format.
 - **Tests:** constraint tests (duplicate domain, orphan board); seed loader idempotency.
-- **LEARN:** P1-01-1 *design it*: the ADR for field-level provenance.
+- **Study:** P1-01-1 *design it*: the ADR for field-level provenance.
 
 ### P1-02 · India location tree and aliases
 - **Spec:** S India pack [MVP] · **Size:** M · **Status:** todo
@@ -137,7 +137,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - case- and diacritic-insensitive lookup;
   - prefix suggestions for the city picker.
 - **Tests:** a table of aliases; unknown input; prefix ranking; a property test (normalise is idempotent).
-- **LEARN:** P1-02-1 *implement*: a trie for prefix lookup and alias resolution, with Big-O analysis vs a sorted slice plus binary search.
+- **Study:** P1-02-1 *implement*: a trie for prefix lookup and alias resolution, with Big-O analysis vs a sorted slice plus binary search.
 
 ### P1-03 · Polite HTTP client
 - **Spec:** Q polite fetching [MVP] · **Size:** M · **Status:** todo
@@ -149,7 +149,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - conditional requests (ETag / If-Modified-Since);
   - a clear user agent.
 - **Tests:** `httptest` servers for 429 then 200, slow body, huge body, redirect off-host, robots disallow and 304; the race detector on the limiter.
-- **LEARN:**
+- **Study:**
   - P1-03-1 *implement*: a concurrency-safe token bucket (locks vs channels, with a property test);
   - P1-03-2 *implement*: an LRU cache for robots.txt (a hash map plus a doubly linked list).
 
@@ -161,13 +161,13 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - recorded fixtures;
   - no live calls in CI.
 - **Tests:** fixture parsing; empty board; malformed JSON; pagination.
-- **LEARN:** P1-04-1 *review it*: the AI opens a PR with seeded issues and the owner reviews it.
+- **Study:** P1-04-1 *review it*: the AI opens a PR with seeded issues and the owner reviews it.
 
 ### P1-05 · Lever connector
 - **Spec:** Q [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:** Lever postings API, with terms verified; fixtures.
 - **Tests:** the same matrix as P1-04.
-- **LEARN:** P1-05-1 *test it*: the owner writes the suite, graded by mutation testing (gremlins) and seeded bugs.
+- **Study:** P1-05-1 *test it*: the owner writes the suite, graded by mutation testing (gremlins) and seeded bugs.
 
 ### P1-06 · Change detection and history
 - **Spec:** R [MVP] · **Size:** M · **Status:** todo
@@ -178,7 +178,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - one transaction per board;
   - re-running never creates duplicates.
 - **Tests:** run twice and get the same state; reorder the input and get the same hash; a crash mid-run rolls back; a reopened posting.
-- **LEARN:** P1-06-1 *implement*: set-diff plus canonical hashing, and prove idempotency with a test.
+- **Study:** P1-06-1 *implement*: set-diff plus canonical hashing, and prove idempotency with a test.
 
 ### P1-07 · Adaptive fetch scheduling with River
 - **Spec:** Q adaptive schedule [MVP] · **Size:** M · **Status:** todo
@@ -189,19 +189,19 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - boards promoted or demoted by posting rate;
   - a fake clock in tests.
 - **Tests:** tier transitions; no double-scheduling under concurrent schedulers; the clock moved forward deterministically.
-- **LEARN:** P1-07-1 *implement*: EWMA-based tiering with a min-heap of next-due boards (O(log n) scheduling).
+- **Study:** P1-07-1 *implement*: EWMA-based tiering with a min-heap of next-due boards (O(log n) scheduling).
 
 ### P1-08 · Board health and auto-pause
 - **Spec:** Q board health [MVP] · **Size:** S · **Status:** todo
 - **Acceptance:** a consecutive-failure counter; auto-pause at N; an admin alert (a log plus a metric); resume.
 - **Tests:** state machine transitions; recovery resets the counter.
-- **LEARN:** P1-08-1 *bug hunt*: on a practice branch, 2 planted state-machine bugs and only the symptom given.
+- **Study:** P1-08-1 *bug hunt*: on a practice branch, 2 planted state-machine bugs and only the symptom given.
 
 ### P1-09 · India title rules
 - **Spec:** S [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:** titles → role family + level ("SDE-2", "SSE", "Member of Technical Staff", "Lead"), with a confidence score and "unknown" when unsure.
 - **Tests:** a labelled table of 150+ titles; ambiguous cases fall to unknown.
-- **LEARN:** P1-09-1 *implement*: tokenisation plus rule matching with string algorithms (normalisation, n-grams).
+- **Study:** P1-09-1 *implement*: tokenisation plus rule matching with string algorithms (normalisation, n-grams).
 
 ### P1-10 · Salary and experience parsing
 - **Spec:** S [MVP] · **Size:** M · **Status:** todo
@@ -210,7 +210,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - "3–5 yrs" and "5+ years";
   - returns "not stated" rather than guessing.
 - **Tests:** a table; Go native fuzzing (`FuzzParseSalary`) never panics; round-trip properties.
-- **LEARN:** P1-10-1 *implement*: the parser plus a fuzz target; interval overlap for experience ranges.
+- **Study:** P1-10-1 *implement*: the parser plus a fuzz target; interval overlap for experience ranges.
 
 ### P1-11 · Board discovery and approval queue
 - **Spec:** P board discovery [MVP] · **Size:** M · **Status:** todo
@@ -218,13 +218,13 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
   - paste a careers URL → detect the provider and board ID → validate that it returns jobs → approval queue;
   - SSRF-safe: no private IPs, no redirect to private IPs, and re-check after DNS resolution.
 - **Tests:** the red-team cases (localhost, 169.254.169.254, DNS rebinding, redirect chains, huge pages).
-- **LEARN:** P1-11-1 *implement*: the SSRF-safe URL validator (abuser-path testing).
+- **Study:** P1-11-1 *implement*: the SSRF-safe URL validator (abuser-path testing).
 
 ### P1-12 · Repost detection and cross-board dedupe
 - **Spec:** R repost detection, S dedupe [MVP] · **Size:** M · **Status:** todo
 - **Acceptance:** SimHash over normalised text; Hamming threshold; same company + title + similar text within N days → repost; duplicate clusters via union-find.
 - **Tests:** labelled near-duplicate pairs (precision/recall reported); a benchmark.
-- **LEARN:** P1-12-1 *optimise*: SimHash + popcount, then LSH banding to beat an O(n²) baseline under budget.
+- **Study:** P1-12-1 *optimise*: SimHash + popcount, then LSH banding to beat an O(n²) baseline under budget.
 
 ### P1-13 · Pipeline metrics
 - **Spec:** X key numbers [MVP] · **Size:** S · **Status:** todo
@@ -243,7 +243,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 
 **Goal:** the owner uses Earlii daily: a guest feed, then sign-in, filters, search, triage and a daily email digest, deployed on free tiers.
 
-| ID | Title | Spec | Size | Acceptance (summary) | Required tests | LEARN |
+| ID | Title | Spec | Size | Acceptance (summary) | Required tests | Study |
 | :-- | :-- | :-- | :-: | :-- | :-- | :-- |
 | P2-01 | Design tokens and theme presets | O | M | Shared token package; Tailwind theme; Neon/Soft/Brutal presets; dark first-class | WCAG AA contrast test across every preset, in CI | *implement* the contrast-ratio checker |
 | P2-02 | Core components | O | M | Role card, chip, badge, button, skeleton, toast with undo, empty state; reduced motion; 44 px targets | Component tests; a11y checks | *test it* |
@@ -311,7 +311,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | R-01 | Monthly | Dependency bumps: merge or close Dependabot PRs; `mise outdated` → bump pins in `mise.toml` + VERSIONS; re-verify free-tier facts |
 | R-02 | Each milestone | Phase grooming: split the next phase's epics into S/M items (docs-only PR); re-estimate the timeline |
 | R-03 | Monthly (from P2-17) | Free-tier usage review: Render hours, Grafana series, LLM spend, email quota |
-| R-04 | Weekly | LEARN review: overdue items in `docs/learning/SKILLS.md`; schedule re-implementations |
+| R-04 | Weekly | Study review: the owner works through the latest private guide and its labs (`docs/learning/README.md`); re-implement older labs from memory |
 
 ## Milestones and exit criteria
 
@@ -348,7 +348,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | Job-board terms or format changes | Data gaps, legal exposure | Documented public APIs only; terms recorded per provider in LEGAL; fixtures; auto-pause |
 | Free-tier limits (DB expiry, sleep, series caps) | Outages, data loss | D-04 resolved before P2-17; backups from day one of deploy; R-03 monthly review |
 | Privacy (DPDP), resumes, LLM data use | Legal and trust damage | Public postings only to the LLM until a paid no-training tier exists; encryption at rest; professional review at M3 |
-| Go learning curve slows delivery | Timeline slip | LEARN exercises target exactly the hard parts; the mentor subagent; skip hatch |
+| Go learning curve slows delivery | Timeline slip | Build mode: the AI builds every item; the owner learns in parallel from private per-PR study guides and labs, with the mentor subagent |
 | Notification noise | Churn | Batching, caps and quiet hours are MVP, not later |
 
 ## Decisions
@@ -377,7 +377,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 
 ## Curriculum map
 
-LEARN mode, standard intensity. Every area is practised for real at least once per phase, with rising difficulty. ⭐ marks the core, in-demand skills the owner asked to prioritise beyond CRUD.
+Where each area is studied in depth, in the private per-PR study guides and labs (build mode, AGENTS.md section 5). Every area comes up for real at least once per phase, with rising difficulty. ⭐ marks the core, in-demand skills the owner asked to prioritise beyond CRUD.
 
 | Area | Phase 0 | Phase 1 | Phase 2 | Later |
 | :-- | :-- | :-- | :-- | :-- |
@@ -413,5 +413,7 @@ LEARN mode, standard intensity. Every area is practised for real at least once p
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-27 | **Mode: build** (owner decision). The AI builds every item; each PR gets a private study guide with labs in `docs/learning/` (gitignored). The P0-02 drain is implemented in #2, and the old LEARN exercises were folded into the P0-01 and P0-02 guides. |
+| 2026-10-27 | P0-01 merged (#1). P0-02 in review (#2): Go skeleton, config, probes, modes; the graceful drain is exercise P0-02-1 (stub + skipped tests). |
 | 2026-10-27 | Review feedback on #1: TS path alias foundation (ADR-0004); section sign banned; SPEC and scaffold kept local; SCP-01, SCP-02 and SCP-03 approved. |
 | 2026-10-27 | Kit generated. Mode: LEARN standard. API style: Connect RPC. P0-01 in review (#1); CI green on ubuntu and windows. |

@@ -83,10 +83,10 @@ describe("skills and subagents", () => {
 });
 
 describe("private inputs", () => {
-  it("docs/SPEC.md and the scaffold prompt are never tracked", () => {
+  it("docs/SPEC.md, the scaffold prompt and docs/learning/ are never tracked", () => {
     const tracked = spawnSync(
       "git",
-      ["ls-files", "docs/SPEC.md", "docs/project-scaffold-claude.md"],
+      ["ls-files", "docs/SPEC.md", "docs/project-scaffold-claude.md", "docs/learning"],
       {
         cwd: root,
         encoding: "utf8",
