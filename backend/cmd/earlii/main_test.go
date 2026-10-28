@@ -116,6 +116,33 @@ func TestRunServesProbesInEveryMode(t *testing.T) {
 	}
 }
 
+// Only api mode serves the Connect API; the other modes expose probes only.
+func TestRunServesHealthRPCInAPIModeOnly(t *testing.T) {
+	const check = "/earlii.v1.HealthService/Check?connect=v1&encoding=json&message=%7B%7D"
+	for mode, want := range map[string]int{
+		"api":       http.StatusOK,
+		"worker":    http.StatusNotFound,
+		"scheduler": http.StatusNotFound,
+	} {
+		t.Run(mode, func(t *testing.T) {
+			p := startRun(t, mode, "EARLII_ENV=dev", unreachableDB, "EARLII_HTTP_ADDR=127.0.0.1:0")
+			code, body := get(t, "http://"+p.addr+check)
+			if code != want {
+				t.Fatalf("GET Check = %d %s, want %d", code, body, want)
+			}
+			// The database is down: the API answers, and says it isn't serving.
+			if mode == "api" && !strings.Contains(body, `"STATUS_NOT_SERVING"`) {
+				t.Fatalf("Check body = %s, want STATUS_NOT_SERVING", body)
+			}
+			p.cancel()
+			if code := p.wait(t); code != 0 {
+				t.Fatalf("exit code = %d, want 0", code)
+			}
+			p.expectNoSecret(t)
+		})
+	}
+}
+
 // The readiness body names the failing check and nothing else: no host, no
 // user, no error text. Details go to the logs, which must not hold the
 // password either.

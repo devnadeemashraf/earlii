@@ -130,9 +130,35 @@ describe("dev server", () => {
     expect(server.config.server.allowedHosts).not.toBe(true);
   });
 
-  it("proxies only the readiness probe, to IPv4 loopback", () => {
+  it("proxies only the Health Check procedure, to IPv4 loopback", () => {
     const proxy = server.config.server.proxy ?? {};
-    expect(Object.keys(proxy)).toEqual(["^/readyz$"]);
-    expect(proxy["^/readyz$"]).toMatchObject({ target: "http://127.0.0.1:8080" });
+    const check = "^/earlii\\.v1\\.HealthService/Check(\\?|$)";
+    expect(Object.keys(proxy)).toEqual([check]);
+    expect(proxy[check]).toMatchObject({ target: "http://127.0.0.1:8080" });
+  });
+
+  it("matches the Check route exactly: no other procedure, probe or traversal reaches the API", () => {
+    // Vite tests each proxy key as a RegExp against the raw request URL, query included.
+    const routes = Object.keys(server.config.server.proxy ?? {}).map((k) => new RegExp(k));
+    const proxied = (url: string) => routes.some((r) => r.test(url));
+
+    expect(proxied("/earlii.v1.HealthService/Check")).toBe(true);
+    expect(proxied("/earlii.v1.HealthService/Check?connect=v1&encoding=json&message=%7B%7D")).toBe(
+      true,
+    );
+    for (const url of [
+      "/readyz",
+      "/healthz",
+      "/earlii.v1.HealthService/CheckAll",
+      "/earlii.v1.HealthService/Other",
+      "/earlii.v1.AdminService/Check",
+      "/earlii.v1.HealthService/Check/../../readyz",
+      "/earlii.v1.HealthService/Check/..%2F..%2Freadyz",
+      "/earlii.v1.HealthService/Check%2F..%2Freadyz",
+      "/earliiXv1XHealthService/Check",
+      "/x/earlii.v1.HealthService/Check",
+    ]) {
+      expect(proxied(url), url).toBe(false);
+    }
   });
 });

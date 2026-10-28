@@ -1,0 +1,10 @@
+{
+  "//": "Copied from scripts/test/fixtures/ts-alias (ADR-0004). This package is source-only: apps compile it themselves, so its own files import with ./, never @/ (an app's @/ would resolve into the app).",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

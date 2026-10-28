@@ -1,0 +1,16 @@
+# Code generation from proto/ (ADR-0006). Every plugin is local and pinned to
+# its runtime: the Go ones by `tool` directives in backend/go.mod, protoc-gen-es
+# by packages/api's lockfile entry. No network, no plugin registry.
+# Run with `task gen`; `task lint:gen` fails if the committed output is stale.
+version: v2
+clean: true
+plugins:
+  - local: ["go", "tool", "protoc-gen-go"]
+    out: backend/gen/api
+    opt: paths=source_relative
+  - local: ["go", "tool", "protoc-gen-connect-go"]
+    out: backend/gen/api
+    opt: paths=source_relative
+  - local: ["node", "packages/api/node_modules/@bufbuild/protoc-gen-es/bin/protoc-gen-es"]
+    out: packages/api/src/gen
+    opt: target=ts

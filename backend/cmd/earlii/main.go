@@ -26,6 +26,7 @@ import (
 	"github.com/devnadeemashraf/earlii/backend/internal/health"
 	"github.com/devnadeemashraf/earlii/backend/internal/httpserver"
 	"github.com/devnadeemashraf/earlii/backend/internal/postgres"
+	"github.com/devnadeemashraf/earlii/backend/internal/rpc"
 )
 
 const usage = "usage: earlii api|worker|scheduler|migrate\n"
@@ -33,6 +34,10 @@ const usage = "usage: earlii api|worker|scheduler|migrate\n"
 // readyTimeout bounds all readiness checks together, well under a typical
 // orchestrator probe timeout.
 const readyTimeout = 2 * time.Second
+
+// readyTTL is how long a readiness report is reused. Browsers call the Health
+// RPC, so without it every call (or a flood of them) would ping Postgres.
+const readyTTL = time.Second
 
 var modes = []string{"api", "worker", "scheduler", "migrate"}
 
@@ -82,7 +87,7 @@ func run(ctx context.Context, args, environ []string, stdout, stderr io.Writer) 
 		return 0
 	}
 
-	if err := serve(ctx, cfg, logger); err != nil {
+	if err := serve(ctx, mode, cfg, logger); err != nil {
 		logger.ErrorContext(ctx, "stopped with error", slog.String("error", err.Error()))
 		return 1
 	}
@@ -109,11 +114,11 @@ func migrate(ctx context.Context, cfg config.Config, logger *slog.Logger) error 
 	return nil
 }
 
-// serve exposes the probes on cfg.HTTPAddr until ctx is done. Every
-// long-running mode serves them, so Compose and Render can health-check any
-// container the same way.
+// serve exposes the probes on cfg.HTTPAddr until ctx is done, plus the Connect
+// API in api mode. Every long-running mode serves the probes, so Compose and
+// Render can health-check any container the same way.
 // TODO(P0-07): start the River client in worker mode and add its check.
-func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+func serve(ctx context.Context, mode string, cfg config.Config, logger *slog.Logger) error {
 	// The pool connects on first use, so the process boots while Postgres is
 	// down and /readyz says so.
 	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL.Reveal())
@@ -130,10 +135,14 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 
+	checker := health.NewChecker(logger, health.Config{Timeout: readyTimeout, TTL: readyTTL},
+		health.Check{Name: "postgres", Fn: pool.Ping})
 	mux := http.NewServeMux()
 	mux.Handle("GET /healthz", health.Liveness())
-	mux.Handle("GET /readyz", health.Readiness(logger, readyTimeout,
-		health.Check{Name: "postgres", Fn: pool.Ping}))
+	mux.Handle("GET /readyz", health.Readiness(checker))
+	if mode == "api" {
+		rpc.Mount(mux, rpc.NewServer(logger, checker))
+	}
 
 	logger.InfoContext(ctx, "listening", slog.String("addr", ln.Addr().String()),
 		slog.String("env", string(cfg.Env)))

@@ -36,7 +36,8 @@ linters:
         - \.Errorf\(
         - errors\.New\(
         - errors\.Join\(
-        - connect\.NewError\(
+        # The signature is the package path: connectrpc.com/connect/v2.NewError( (ADR-0006).
+        - connect(/v2)?\.NewError\(
   exclusions:
     generated: strict
     paths:

@@ -21,6 +21,7 @@ Every version and external fact the project relies on, with the date it was veri
 | Vite | 8.3.5 | 2026-10-27 | `npm view vite version` |
 | Vitest | 5.0.5 | 2026-10-27 | `npm view vitest version`. Runs on Vite 8 config; verified on the alias fixture |
 | sqlc | 1.31.1 | 2026-10-27 | `mise ls-remote sqlc` (aqua `sqlc-dev/sqlc`); GitHub releases ship a native windows_amd64 build. `sqlc generate` verified on the Windows dev box (no cgo) |
+| buf | 1.75.0 | 2026-10-28 | `mise latest buf` (aqua `bufbuild/buf`, native Windows build). `buf lint`, `buf generate` with local plugins, and `buf breaking --against .git#ref=<sha>` verified on the Windows dev box. An against input with no `.proto` files fails ("had no .proto files"), hence the skip in `scripts/check-proto-breaking.mjs` (ADR-0006) |
 | mise (installer, not pinned) | 2026.10.20 latest; 2026.10.19 installed locally | 2026-10-27 | https://github.com/jdx/mise/releases |
 
 ## Pinned GitHub Actions (by commit SHA)
@@ -38,6 +39,8 @@ Every version and external fact the project relies on, with the date it was veri
 | golang.org/x/sync (errgroup) | v0.24.0 | 2026-10-27 | `go list -m -json golang.org/x/sync@latest` (published 2026-09-23); used by `httpserver.Serve` (P0-02) |
 | github.com/jackc/pgx/v5 | v5.11.0 | 2026-10-27 | `go list -m -json ...@latest` (published 2026-09-07). Pool, connections, `stdlib` adapter for goose (P0-04) |
 | github.com/riverqueue/river (+ riverdriver/riverpgxv5) | v0.50.0 | 2026-10-27 | Module proxy (published 2026-10-27). Chosen over v0.49.0 for its fixes (durable periodic jobs, notifier backoff); its breaking change (nested resumable steps) doesn't touch us. Only `rivermigrate` is used until P1-07 |
+| connectrpc.com/connect/v2 | v2.0.2 | 2026-10-28 | Module proxy (v2.0.0 on 2026-10-07, v2.0.2 on 2026-10-21). Chosen over v1 (`connectrpc.com/connect` v1.21.1) in ADR-0006. Its `cmd/protoc-gen-connect-go` is a `tool` directive, so the generator matches the runtime |
+| google.golang.org/protobuf | v1.36.12 | 2026-10-28 | Module proxy. Its `cmd/protoc-gen-go` is a `tool` directive (`go tool protoc-gen-go`, Go 1.24+) |
 | github.com/pressly/goose/v3 | v3.29.0 | 2026-10-27 | Module proxy (published 2026-10-11). Migrations as a library (ADR-0005) |
 
 ## Pinned container images (`compose.yaml`, CI service)
@@ -65,17 +68,16 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | jsdom | 30.1.3 | DOM for component and route tests |
 | @testing-library/react, /dom, /jest-dom | 16.3.3, 10.4.2, 7.0.1 | Rendering, queries, DOM matchers (`@testing-library/jest-dom/vitest`) |
 | @types/node | 24.19.2 | Node types for `vite.config.ts` and node-environment tests (Node 24 LTS) |
+| @connectrpc/connect, @connectrpc/connect-web | 2.2.0 | Generated-client runtime and the browser transport (P0-05). 2.3.0 (2026-10-27) exists, but pnpm 12's default minimum release age rejects packages under a day old; 2.2.0 (2026-09-07) is used rather than adding an exclusion. connect-web has no response size limit or redirect option: `createGuardedFetch` adds both |
+| @bufbuild/protobuf | 2.16.0 | Protobuf runtime (also a dependency of `packages/api`). With Connect, adds 31.99 kB gzip to the initial JS (112.93 to 144.92 kB, `task build:web`, 2026-10-28); the binary codec changes it by 0.01 kB |
+| @bufbuild/protoc-gen-es | 2.16.0 | Code generator, a devDependency of `packages/api` (same version as the runtime) |
+| @earlii/api | workspace | Generated contracts (`packages/api`, source-only) |
 | shadcn (CLI, not a dependency) | 4.23.0 | Run pinned: `pnpm dlx shadcn@4.23.0 add <component>` from `apps/web` |
 
 ## Candidate versions (verified latest; pin when the item starts)
 
 | Package | Latest | For | Verified | Source |
 | :-- | :-- | :-- | :-- | :-- |
-| buf | 1.75.0 | P0-05 | 2026-10-27 | `mise latest buf`; GitHub releases |
-| connect-go | v2.0.2 (`connectrpc.com/connect/v2`) | P0-05 | 2026-10-27 | `go list -m connectrpc.com/connect/v2@latest`. Note: v1 is still `connectrpc.com/connect` v1.21.1. Pick deliberately |
-| google.golang.org/protobuf | v1.36.12 | P0-05 | 2026-10-27 | Go module proxy |
-| @connectrpc/connect, connect-web | 2.2.0 | P0-05 | 2026-10-27 | npm registry |
-| @bufbuild/protobuf, protoc-gen-es | 2.16.0 | P0-05 | 2026-10-27 | npm registry |
 | OpenTelemetry Go | v1.47.0 | P0-07 | 2026-10-27 | Go module proxy |
 | motion | 14.6.0 | P2-02 | 2026-10-27 | npm registry |
 | Expo | 58.0.19 | E-07 | 2026-10-27 | npm registry |
@@ -132,6 +134,14 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | slog's JSON handler encodes a nested struct with `encoding/json`, ignoring `String` and `LogValue` on its fields; `MarshalText` is honoured | 2026-10-28 | Go 1.27.3; proven by `TestSecretNeverPrints` (failed before `Secret.MarshalText`) |
 | grafana/otel-lgtm 0.38.1 enables anonymous **Admin** by default (`GF_AUTH_ANONYMOUS_ENABLED=true`, role Admin); `GF_SERVER_ENFORCE_DOMAIN=true` with domain `localhost` makes Grafana 301 any other Host | 2026-10-28 | `/otel-lgtm/run-grafana.sh` in the image; `curl -H 'Host: evil.example.com' 127.0.0.1:3000/api/org` returned 301 |
 | sqlc 1.31.1 reads goose files from the migrations directory as its schema | 2026-10-28 | `sqlc generate` on `backend/sqlc.yaml` |
+| connect-go v2.0.2: `connecthttp.WithReadMaxBytes` applies after decompression (a gzip bomb fails with `resource_exhausted`); the default is 4 MiB | 2026-10-28 | `connecthttp/compression.go` (`Decompress`); proven by `TestGzipBombIsRejected` |
+| connect-go v2.0.2: wrong HTTP method (405), unsupported content type (415), unknown compression and a bad timeout header are rejected in `connecthttp` before the interceptor chain, so they get no access log line | 2026-10-28 | `connecthttp/handler.go` (`ServeHTTP`) |
+| connect-go v2.0.2: `WithRequireConnectProtocolHeader` makes a Connect GET carry `connect=v1` and a unary POST carry `Connect-Protocol-Version`; gRPC and gRPC-Web are unaffected and can't be turned off server-side | 2026-10-28 | `go doc connectrpc.com/connect/v2/connecthttp.WithRequireConnectProtocolHeader`; `connecthttp/protocol_connect.go`; proven by `TestRequiresConnectProtocolMarker` |
+| connect-go v2.0.2: only an authored `*connect.Error` is serialised; any other error reaches the client as a bare code | 2026-10-28 | `go doc connectrpc.com/connect/v2.Error`; proven by `TestPlainErrorTextNeverReachesClient` |
+| connect-go v2: `connectrpc.com/otelconnect/v2` v2.0.0 exists; `validate/v2`, `authn/v2` and `grpchealth/v2` were not found on the module proxy | 2026-10-28 | `go list -m <module>@latest` |
+| connect-web 2.2.0 `ConnectTransportOptions`: `baseUrl`, `useBinaryFormat` (JSON by default), `useHttpGet`, `fetch`, `defaultTimeoutMs`; no `readMaxBytes` and no redirect option | 2026-10-28 | `@connectrpc/connect-web/dist/esm/connect-transport.d.ts` |
+| pnpm 12.15.0 applies a default minimum release age (about one day) and, on `pnpm add` of a newer package, writes a `minimumReleaseAgeExclude` entry into `pnpm-workspace.yaml`; a lockfile holding such a package then fails verification | 2026-10-28 | `pnpm add @connectrpc/connect@2.3.0` output |
+| Go 1.24+ `tool` directives: `go tool <name>` runs from the repo root under `go.work`, so buf can call `go tool protoc-gen-go` as a local plugin | 2026-10-28 | `go tool protoc-gen-go --version` (v1.36.12) on the Windows dev box |
 | The Playwright MCP launches the `chrome` channel, which isn't installed on the dev box (`npx playwright install chrome` would fix it) | 2026-10-27 | MCP error on `browser_navigate` |
 
 ## UNVERIFIED (check before relying on them)

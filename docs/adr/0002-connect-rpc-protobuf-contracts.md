@@ -51,7 +51,7 @@ Use **Connect RPC with Protobuf**, managed by buf (`buf lint`, `buf breaking` ag
 - Negative:
   - the owner learns protobuf schema evolution: field numbers, `reserved`, and `_UNSPECIFIED` enums (a learning goal);
   - generated code adds review noise (collapsed by `.gitattributes`).
-- **Open detail for P0-05:** connect-go v1 (`connectrpc.com/connect`) vs v2 (`connectrpc.com/connect/v2`, v2.0.2 verified 2026-10-27). Pick in the P0-05 design step and record it in VERSIONS.
+- **Open detail for P0-05** (resolved): connect-go v2, chosen in [ADR-0006](0006-connect-v2-and-codegen.md).
 
 ## Verification
 
