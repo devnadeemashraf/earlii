@@ -24,7 +24,7 @@ x-app: &app
   read_only: true
   cap_drop: [ALL]
   security_opt: ["no-new-privileges:true"]
-  # Postgres only. P0-07 adds obs, so the modes can reach the OTLP endpoint.
+  # Postgres only. P0-07a adds obs, so the modes can reach the OTLP endpoint.
   networks: [db]
 
 services:
@@ -50,7 +50,7 @@ services:
       retries: 30
     networks: [db]
 
-  # Grafana, Loki, Tempo and Mimir behind one OTLP endpoint (P0-07 sends to it).
+  # Grafana, Loki, Tempo and Mimir behind one OTLP endpoint (P0-07a sends to it).
   lgtm:
     image: grafana/otel-lgtm:0.38.1
     environment:

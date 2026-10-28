@@ -25,7 +25,7 @@ ADR-0002 chose Connect RPC with Protobuf and left one detail open: connect-go v1
 ### 1. connect-go version
 
 - **A: v1 (`connectrpc.com/connect` v1.21.1).** Mature, and well known to tools and agents. But it uses generic `Request[T]`/`Response[T]` wrappers, its interceptors run after decoding, and moving to v2 later means a rewrite.
-- **B: v2 (`connectrpc.com/connect/v2` v2.0.2).** A plain `func(ctx, *Req) (*Res, error)` shape, whole-call interceptors (recovery, request IDs and access logs in one place), safe-by-default errors and an in-process test transport. It is three weeks old: every API is checked with `go doc`, not memory. `otelconnect/v2` exists for P0-07.
+- **B: v2 (`connectrpc.com/connect/v2` v2.0.2).** A plain `func(ctx, *Req) (*Res, error)` shape, whole-call interceptors (recovery, request IDs and access logs in one place), safe-by-default errors and an in-process test transport. It is three weeks old: every API is checked with `go doc`, not memory. `otelconnect/v2` exists for P0-07. (Correction, 2026-10-28: it does not exist; the module proxy answers 404. P0-07a writes its own telemetry interceptor. The decision stands.)
 
 ### 2. Plugins and pins
 
@@ -68,10 +68,10 @@ ADR-0002 chose Connect RPC with Protobuf and left one detail open: connect-go v1
 - Positive:
   - one `.proto` yields a typed Go server and TS client, checked for staleness and wire compatibility in CI;
   - Health is cheap under load and can't leak error text;
-  - the interceptor chain is ready for auth (P2-10) and OTel (P0-07).
+  - the interceptor chain is ready for auth (P2-10) and OTel (P0-07a).
 - Negative / accepted trade-offs:
   - v2's young ecosystem: `validate/v2`, `authn/v2` and `grpchealth/v2` were not found on the module proxy on 2026-10-28;
-  - requests rejected before the interceptor chain (405, 415, bad compression) get no access log line until HTTP-level telemetry lands in P0-07;
+  - requests rejected before the interceptor chain (405, 415, bad compression) get no access log line until HTTP-level telemetry lands in P0-07a;
   - connect-go handlers also speak gRPC-Web, and v2 has no server option to turn it off; it reaches only the same handlers through the same limits;
   - the web initial JS grows by 31.99 kB gzip for the Connect and Protobuf runtimes (112.93 to 144.92 kB of 170 kB; `task build:web` on main and on this branch). The binary codec makes no difference (within 0.01 kB). Lazy-loading the client would only move bytes off the metric, since Health is on the first route's critical path.
 - What would make us revisit this: a needed ecosystem package with no `/v2` release, or a public REST surface (add plain handlers beside Connect, as ADR-0002 says).

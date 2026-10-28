@@ -2,7 +2,7 @@
 // container from the same image (ADR-0003):
 //
 //	earlii api        serves the API
-//	earlii worker     runs background jobs (River, P0-07)
+//	earlii worker     runs background jobs (River, P0-07b)
 //	earlii scheduler  enqueues periodic jobs (P1-07)
 //	earlii migrate    applies the schema, then exits (ADR-0005)
 //
@@ -117,7 +117,7 @@ func migrate(ctx context.Context, cfg config.Config, logger *slog.Logger) error 
 // serve exposes the probes on cfg.HTTPAddr until ctx is done, plus the Connect
 // API in api mode. Every long-running mode serves the probes, so Compose and
 // Render can health-check any container the same way.
-// TODO(P0-07): start the River client in worker mode and add its check.
+// TODO(P0-07b): start the River client in worker mode and add its check.
 func serve(ctx context.Context, mode string, cfg config.Config, logger *slog.Logger) error {
 	// The pool connects on first use, so the process boots while Postgres is
 	// down and /readyz says so.
@@ -148,7 +148,7 @@ func serve(ctx context.Context, mode string, cfg config.Config, logger *slog.Log
 		slog.String("env", string(cfg.Env)))
 	err = httpserver.Serve(ctx, httpserver.New(mux, logger), ln, cfg.ShutdownTimeout)
 	// ctx is done here; log with a fresh context so the line isn't dropped by
-	// context-aware handlers (P0-07).
+	// context-aware handlers (P0-07a).
 	logger.InfoContext(context.WithoutCancel(ctx), "stopped", slog.Any("cause", context.Cause(ctx)))
 	if err != nil {
 		return fmt.Errorf("serve: %w", err)

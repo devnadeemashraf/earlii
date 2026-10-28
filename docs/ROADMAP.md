@@ -16,7 +16,7 @@ This is an honest estimate at **~20 h/week**: about 8 sessions a week, roughly 5
 
 | Phase | Items | Sessions | Calendar |
 | :-- | :-: | :-: | :-- |
-| 0 · Bootstrap | 7 | ~14 | weeks 1–3 |
+| 0 · Bootstrap | 8 | ~16 | weeks 1–3 |
 | 1 · Data platform | 14 | ~35 | weeks 4–10 |
 | 2 · Personal MVP | 17 | ~45 | weeks 11–19 (**M2 ≈ early March 2027**) |
 | 3 · Public beta | 10 epics | ~70 | weeks 20–34 (≈ mid-2027) |
@@ -94,7 +94,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-05-1 *implement*: a Connect interceptor that adds request IDs and structured access logs (the middleware pattern).
 
 ### P0-06 · One image, many containers
-- **Spec:** 3 Packaging, Z [MVP] · **Size:** S · **Status:** in review (#8)
+- **Spec:** 3 Packaging, Z [MVP] · **Size:** S · **Status:** done (#8) · [ADR-0007](adr/0007-container-image.md)
 - **Acceptance:**
   - a multi-stage Dockerfile building a static binary on a minimal base;
   - the compose services `api`, `worker` and `scheduler` all run the same image;
@@ -103,16 +103,34 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Tests:** a CI smoke test runs `earlii api` in the container and hits `/healthz`.
 - **Study:** P0-06-1 *optimise*: get the image under budget, and explain each layer.
 
-### P0-07 · Observability base
+### P0-07a · Telemetry base
 - **Spec:** X [MVP] · **Size:** M · **Status:** todo
+- **Split from P0-07** in #9 (2026-10-28, owner-approved). Design: ADR-0008, written in this item.
 - **Acceptance:**
-  - OTel traces, metrics and logs (slog bridge);
-  - RED metrics per RPC;
-  - worker mode starts River's client (with a readiness check), and the API can enqueue (deferred from P0-04);
-  - trace context propagated from API → River job → worker;
-  - local Grafana shows one trace spanning both.
-- **Tests:** an in-memory exporter asserts the parent/child spans across an enqueued job.
-- **Study:** P0-07-1 *implement*: carrying trace context through job args (sync vs async inter-service communication).
+  - OTel traces, metrics and logs over OTLP/HTTP with the official exporters, configured only by `EARLII_OTLP_ENDPOINT` and `EARLII_OTLP_HEADERS` (a `Secret`). Any `OTEL_*` variable fails the boot, and prod requires https;
+  - with no endpoint, nothing is exported, but spans still get real IDs, so stdout lines carry `trace_id` and `span_id`;
+  - slog fans out to the stdout JSON and the otelslog bridge, both gated by the same `EARLII_LOG_LEVEL`;
+  - RED metrics per RPC from our own connect v2 interceptor (`otelconnect/v2` doesn't exist): `rpc.server.call.duration` (semconv v1.43.0), with any unknown method recorded as `_OTHER`;
+  - HTTP-level telemetry (otelhttp) covers requests rejected before the Connect chain (405, 415). An inbound `traceparent` is never adopted, and Host-derived attributes are kept off the metrics;
+  - the compose app services join the `obs` network and export to `lgtm`;
+  - telemetry flushes inside `EARLII_SHUTDOWN_TIMEOUT`;
+  - the image budget gate is raised to 40 MB, and the real size is measured.
+- **Tests:**
+  - in-memory exporters (`tracetest`, `sdkmetric.ManualReader`) for the RPC span and histogram;
+  - an `httptest` OTLP collector (the paths, the headers, a 500, unreachable);
+  - abuser tests: 1000 unknown procedures give one series; 1000 Host headers add no series; an inbound `traceparent` is ignored; `OTEL_*` is rejected.
+- **Study:** P0-07a-1 *explain it*: the OTel SDK pipeline (provider, processor, exporter) and metric cardinality.
+
+### P0-07b · River in worker mode and one trace from API to worker
+- **Spec:** X [MVP] · **Size:** M · **Status:** todo
+- **Split from P0-07** in #9 (2026-10-28). Needs P0-07a.
+- **Acceptance:**
+  - worker mode starts River's client and retries `Start` with backoff, so the worker boots while the DB is down; a `river` readiness check; `Stop` runs inside the drain;
+  - the API has an insert-only client. A dev-only `POST /dev/jobs/ping` (mounted only when `EARLII_ENV=dev`, 404 in prod) enqueues a no-op `ping` job (deferred from P0-04);
+  - our own River middleware (`Config.Middleware`) carries W3C `traceparent` in the job **metadata**, never in the args, because River hashes the args into unique keys. The work span is a **child** of the insert span (otelriver only links them);
+  - local Grafana shows one trace spanning the HTTP request, the insert and the work.
+- **Tests:** an integration test with an in-memory exporter asserts the parent/child spans across an enqueued job (one TraceID, and `traceparent` stored in `river_job.metadata`); a forged or oversized `traceparent` starts a new root; uniqueness by args still dedupes with tracing on.
+- **Study:** P0-07b-1 *implement*: carrying trace context through job metadata (sync vs async inter-service communication).
 
 ---
 
@@ -335,7 +353,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | Posted → alert | busy < 20 min · normal < 70 min · quiet same day | SPEC section 4 |
 | AI draft first token | ≤ 1.5 s | SPEC section 4 |
 | Web initial JS | ≤ 170 kB gzip (1 kB = 1000 bytes) | our target; gated by `task build:web` since P0-03 (about 113 kB at P0-03) |
-| Docker image | ≤ 30 MB (1 MB = 10^6 bytes, of `docker export`) | our target; gated by `task test:image` since P0-06 (17.56 MB at P0-06) |
+| Docker image | ≤ 40 MB (1 MB = 10^6 bytes, of `docker export`) | our target; gated by `task test:image` since P0-06 (17.56 MB at P0-06). Raised from 30 MB on 2026-10-28 (owner-approved): every official OTLP exporter links gRPC, about +11.4 MB for all three (probe builds); the gate changes in P0-07a |
 | API / worker memory | ≤ 256 MB RSS each | our target; fits small free-tier instances |
 | Fetch politeness | ≤ 1 req/s per host by default; honour crawl-delay | SPEC section Q |
 | Monthly cost through M2 | ₹0 beyond the domain | SPEC section 3 (free tiers first) |
@@ -406,7 +424,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 | Design and architecture (interfaces, ADRs, data modelling, API versioning) | P0-04-1 ADR, P0-05 buf breaking ⭐ | P1-01-1 provenance ADR, P1-04 connector interface | P2-10-1 session design | E-01 LLM provider interface |
 | Reliability (idempotency, transactions, outbox) | — | P1-06-1 idempotency ⭐ | P2-13 outbox ⭐ | — |
 | Security (validation, authn/z, secrets, OWASP) | P0-02 secrets in env | P1-11-1 SSRF ⭐ | P2-09 XSS, P2-10 sessions ⭐ | E-08 |
-| Observability (logs, metrics, traces, SLOs) | P0-07-1 propagation ⭐ | P1-13 dashboards | P2-17 production SLOs | — |
+| Observability (logs, metrics, traces, SLOs) | P0-07a-1 OTel pipeline, P0-07b-1 propagation ⭐ | P1-13 dashboards | P2-17 production SLOs | — |
 | LLM features with evals | — | — | — | E-01 precision/recall gate ⭐ |
 | Craft (review, git, CI/CD, docs, estimation) | P0-01-1 explain it | P1-04-1 review it | P2-17 explain it | R-02: the owner estimates before grooming |
 
@@ -414,6 +432,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-28 | P0-06 merged (#8). #9 (in review): P0-07 split into P0-07a (telemetry base) and P0-07b (River in worker mode and the trace from API to worker), owner-approved. Image budget raised to 40 MB (the OTLP exporters link gRPC). Trace context goes in job metadata, not args. The enqueue demo is a dev-only HTTP route. |
 | 2026-10-28 | P0-05 merged (#7). P0-06 in review (#8): one Dockerfile (static binary on distroless nonroot, 17.56 MB), allowlist build context, compose `app` profile for migrate/api/worker/scheduler, `test:image` smoke test in `task check`, hadolint and Trivy in CI (ADR-0007). D-04 isn't needed for the image and stays due at P2-17. |
 | 2026-10-28 | BP-002 merged (#6). P0-05 in review (#7): `proto/earlii/v1/health.proto`, connect-go v2 server with request-ID, access-log and recovery interceptors, generated TS client in `@earlii/api`, the web calls `Health` with a Connect GET, `buf lint`/`buf breaking`/stale-codegen checks (ADR-0006). |
 | 2026-10-28 | P0-04 merged (#5). BP-002 in review: `lint:migrations` read main's files trimmed, so every PR and main itself failed `task check`; it now reads exact bytes. P0-05 in progress, stacked on it. |

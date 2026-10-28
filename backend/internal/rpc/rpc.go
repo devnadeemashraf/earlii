@@ -52,7 +52,7 @@ func newServer(logger *slog.Logger, h earliiv1connect.HealthServiceHandler) *con
 //
 // Requests rejected before the interceptor chain (wrong HTTP method, an
 // unsupported content type or compression) get a status code and no access
-// log line; HTTP-level telemetry arrives with P0-07.
+// log line; HTTP-level telemetry arrives with P0-07a.
 func Mount(mux *http.ServeMux, server *connect.Server) {
 	connecthttp.Mount(mux, server,
 		connecthttp.WithReadMaxBytes(readMaxBytes),

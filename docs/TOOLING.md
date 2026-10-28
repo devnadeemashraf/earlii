@@ -49,7 +49,7 @@ Agents produce plausible code quickly. The failure modes shift from "slow to wri
 | [sqlc](https://github.com/sqlc-dev/sqlc) | Typed Go from SQL; `sqlc vet` catches query problems before runtime | MIT | v1.31.1 | P0-04 |
 | [goose](https://github.com/pressly/goose) | Forward-only SQL migrations (D-07 candidate) | MIT | v3.29.0 | P0-04 |
 | [testcontainers-go](https://github.com/testcontainers/testcontainers-go) | Real Postgres in integration tests (D-10 candidate) | MIT | v0.44.0 | P0-04 |
-| [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm) | A one-container local OpenTelemetry backend (Loki, Grafana, Tempo, Mimir) | Apache-2.0 | v0.38.1 | P0-04 / P0-07 |
+| [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm) | A one-container local OpenTelemetry backend (Loki, Grafana, Tempo, Mimir) | Apache-2.0 | v0.38.1 | P0-04 / P0-07a |
 | [govulncheck](https://github.com/golang/vuln) | Reports only vulnerabilities in code paths you actually call | BSD-3-Clause | v1.9.0 (tag) | P0-02 |
 | [OSV-Scanner](https://github.com/google/osv-scanner) | Vulnerability scan for npm and Go lockfiles against the OSV database | Apache-2.0 | v2.7.0 | P0-03 |
 | [Trivy](https://github.com/aquasecurity/trivy) | Container image vulnerability and misconfiguration scan | Apache-2.0 | v0.76.1 | P0-06 |
