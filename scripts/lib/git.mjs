@@ -7,6 +7,19 @@ export function git(args, options = {}) {
   return { ok: result.status === 0, stdout: (result.stdout || "").trim(), stderr: result.stderr };
 }
 
+/**
+ * A file's exact content at a commit (not trimmed, unlike git()), or null if git can't show it.
+ * The buffer is far above spawnSync's 1 MiB default, so a large file never reads as missing.
+ */
+export function showFile(sha, file, cwd) {
+  const r = spawnSync("git", ["show", `${sha}:${file}`], {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return r.status === 0 && !r.error ? r.stdout : null;
+}
+
 export function currentBranch(cwd) {
   const r = git(["rev-parse", "--abbrev-ref", "HEAD"], { cwd });
   return r.ok ? r.stdout : "";

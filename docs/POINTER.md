@@ -5,7 +5,7 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **build** (switched 2026-10-27): the AI builds every item; each PR gets a private study guide (AGENTS.md section 5).
-- P0-01 to P0-03 and BP-001 (#1 to #4) are merged. **P0-04 (local stack, migrations, sqlc) is in review as #5** on `feat/P0-04-local-stack-migrations`.
+- P0-01 to P0-04 and BP-001 (#1 to #5) are merged. **BP-002 (lint:migrations false positive, main CI red since #5) is in review** on `fix/BP-002-migration-lint-trailing-newline`. P0-05 is in progress, stacked on it.
 - Works now:
   - Go: `earlii api|worker|scheduler|migrate`, env config (`EARLII_DATABASE_URL` required; prod demands verify-full/verify-ca TLS), JSON `slog`, `/healthz` + `/readyz` (a `postgres` check), graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
   - DB: `task dev` (compose Postgres 18 + Grafana/OTLP, migrate, API, web); `earlii migrate` applies River's 8 migrations then ours (goose, embedded) under one advisory lock (ADR-0005); sqlc into `backend/gen/db` (`task gen`); `lint:migrations` enforces forward-only; DB integration tests run locally with the stack up and in CI's `integration` job;
@@ -17,11 +17,11 @@
 
 ## FIX-FIRST QUEUE
 
-_Empty._
+- **BP-002** (in review, #6): `lint:migrations` reported every migration on main as "changed after merge", so `task check` has failed on main and on every branch since #5. Evidence: CI run for 48525ab (both check legs); `scripts/check-migrations.mjs:30` read main's files through `git()`, which trims stdout and drops the final newline. Fix: `showFile` returns exact bytes; covered end to end by `scripts/test/check-migrations.test.mjs`.
 
 ## NEXT UP
 
-**P0-05 · Contracts: Protobuf + Connect** (ROADMAP section Phase 0), once #5 is merged.
+**P0-05 · Contracts: Protobuf + Connect** (ROADMAP section Phase 0), in progress on `feat/P0-05-contracts-connect`, stacked on BP-002.
 
 - **Why now:** the web app still calls `/readyz` directly; every later RPC needs the contract pipeline (buf, codegen, `buf breaking`).
 - **Start at:** pick connect-go v1 vs v2 deliberately (VERSIONS notes both), pin buf in `mise.toml`, add `proto/earlii/v1/health.proto` and `task gen` targets beside sqlc's.
@@ -54,6 +54,7 @@ _Empty._
 - **Task lets the shell's environment win over a task's `env:` block.** Tasks that run the binary set variables inline (`KEY=value go run ...`); a test enforces it.
 - Postgres: `pg_isready` without `-h` probes the unix socket, which the image's first-run init serves before restarting. Health checks use `-h 127.0.0.1`. The Windows box's Docker Desktop needs starting before `task dev`.
 - slog's JSON handler encodes nested structs with `encoding/json`, ignoring `String`/`LogValue` on fields: `config.Secret` also implements `MarshalText`.
+- `scripts/lib/git.mjs` `git()` trims stdout: fine for refs and lists, wrong for file contents. Read files at a commit with `showFile` (BP-002).
 - In Node scripts, `String.replace(a, b)` treats `` $` ``, `$'` and `$&` in `b` as patterns, which bites when `b` is Markdown with backticks. Pass `() => b`.
 
 ## Learning
@@ -66,6 +67,7 @@ _Empty._
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
+| #6 | BP-002 | `lint:migrations` reads main's migrations byte-exact (`showFile`), fixing a false "changed after merge" that turned main red; end-to-end CLI test | no |
 | #5 | P0-04 | Compose stack (Postgres 18, otel-lgtm; loopback only), `earlii migrate` (River then goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, strict DB URL config, forward-only lint, DB integration tests in CI (ADR-0005) | yes: `task dev`, curl `127.0.0.1:8080/readyz` (200), `task dev:down`, curl again (503) |
 | #4 | BP-001 | `task dev:api` binds `127.0.0.1:8080` only; a test keeps it equal to the web dev proxy target | yes: `task dev:api`, curl `127.0.0.1:8080/readyz` (200) and `<LAN IP>:8080/readyz` (refused) |
 | #3 | P0-03 | Web skeleton: Vite/React/TanStack/Tailwind/shadcn, skeleton then content, PWA manifest, locked-down dev server, bundle gate | yes: `task dev:api` + `task dev:web:lan`, open on a phone |
