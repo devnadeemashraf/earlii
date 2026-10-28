@@ -22,6 +22,8 @@ Every version and external fact the project relies on, with the date it was veri
 | Vitest | 5.0.5 | 2026-10-27 | `npm view vitest version`. Runs on Vite 8 config; verified on the alias fixture |
 | sqlc | 1.31.1 | 2026-10-27 | `mise ls-remote sqlc` (aqua `sqlc-dev/sqlc`); GitHub releases ship a native windows_amd64 build. `sqlc generate` verified on the Windows dev box (no cgo) |
 | buf | 1.75.0 | 2026-10-28 | `mise latest buf` (aqua `bufbuild/buf`, native Windows build). `buf lint`, `buf generate` with local plugins, and `buf breaking --against .git#ref=<sha>` verified on the Windows dev box. An against input with no `.proto` files fails ("had no .proto files"), hence the skip in `scripts/check-proto-breaking.mjs` (ADR-0006) |
+| hadolint | 2.15.1 | 2026-10-28 | `mise latest hadolint` (aqua `hadolint/hadolint`); https://github.com/hadolint/hadolint/releases (v2.15.1, 2026-07-31). Native Windows build; `hadolint Dockerfile` verified on the dev box (P0-06) |
+| Trivy | 0.76.1 | 2026-10-28 | `mise latest trivy` (aqua `aquasecurity/trivy`); https://github.com/aquasecurity/trivy/releases (v0.76.1, 2026-10-21; checksums and sigstore bundles published). Used through mise, not `trivy-action`. It downloads its vulnerability database at scan time |
 | mise (installer, not pinned) | 2026.10.20 latest; 2026.10.19 installed locally | 2026-10-27 | https://github.com/jdx/mise/releases |
 
 ## Pinned GitHub Actions (by commit SHA)
@@ -49,6 +51,8 @@ Every version and external fact the project relies on, with the date it was veri
 | :-- | :-- | :-- | :-- |
 | postgres | `18.6-alpine` (digest `sha256:10a5c69a…`) | 2026-10-27 | `docker pull`; image env `PG_VERSION=18.6`, `PGDATA=/var/lib/postgresql/18/docker`, volume `/var/lib/postgresql` |
 | grafana/otel-lgtm | `0.38.1` (digest `sha256:0df9bc14…`) | 2026-10-27 | `docker pull`; exposes 3000, 4317, 4318 |
+| golang (Dockerfile builder) | `1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb` | 2026-10-28 | `docker pull`; env `GOLANG_VERSION=1.27.3`, `GOTOOLCHAIN=local` (matches `mise.toml`, a test checks it) |
+| gcr.io/distroless/static-debian13 (Dockerfile runtime) | `nonroot@sha256:18f4cc26c9ffa7f20a359298be7deadac5c607c8e03a02b8119f1a5fc2f82c99` | 2026-10-28 | `docker pull`; user `65532`, `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`, no shell (P0-06 smoke test) |
 
 ## Pinned npm packages (`apps/web/package.json`, exact pins)
 
@@ -142,6 +146,10 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | connect-web 2.2.0 `ConnectTransportOptions`: `baseUrl`, `useBinaryFormat` (JSON by default), `useHttpGet`, `fetch`, `defaultTimeoutMs`; no `readMaxBytes` and no redirect option | 2026-10-28 | `@connectrpc/connect-web/dist/esm/connect-transport.d.ts` |
 | pnpm 12.15.0 applies a default minimum release age (about one day) and, on `pnpm add` of a newer package, writes a `minimumReleaseAgeExclude` entry into `pnpm-workspace.yaml`; a lockfile holding such a package then fails verification | 2026-10-28 | `pnpm add @connectrpc/connect@2.3.0` output |
 | Go 1.24+ `tool` directives: `go tool <name>` runs from the repo root under `go.work`, so buf can call `go tool protoc-gen-go` as a local plugin | 2026-10-28 | `go tool protoc-gen-go --version` (v1.36.12) on the Windows dev box |
+| Docker 29.9.1 with the containerd image store: `docker image inspect`'s `Size` counts the unpacked layers **plus** the compressed blobs (earlii:local: 26.13 MB, with `docker images` showing 6.13 MB content size); the classic store reports the uncompressed size. Hence the image budget is measured on the bytes of `docker export` (17.56 MB) | 2026-10-28 | `docker image inspect`, `docker images`, `docker export \| wc -c` on the dev box |
+| `-ldflags="-s -w"` shrinks the linux/amd64 `earlii` binary from 20,668,076 to 14,205,088 bytes (31%) | 2026-10-28 | `go build -trimpath -buildvcs=false` with and without the flags, `ls -l` |
+| The engine's built-in Dockerfile frontend (Docker 29.9.1) supports `RUN --mount=type=cache` and `FROM --platform=$BUILDPLATFORM` with no `# syntax=` line | 2026-10-28 | `docker build` of the P0-06 Dockerfile |
+| A Go binary running as PID 1 with `signal.NotifyContext` gets SIGTERM from `docker stop` and drains (exit 0 in about 0.5 s, every serving mode); it starts no children, so no init (tini) is needed | 2026-10-28 | `task test:image` |
 | The Playwright MCP launches the `chrome` channel, which isn't installed on the dev box (`npx playwright install chrome` would fix it) | 2026-10-27 | MCP error on `browser_navigate` |
 
 ## UNVERIFIED (check before relying on them)
@@ -152,6 +160,7 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | India commercial SMS requires TRAI DLT sender/template registration (affects SCP-01 phone OTP) | TRAI / SMS-provider documentation, before any phone-OTP work |
 | Chrome installs the PWA from `manifest.webmanifest` (installability needs HTTPS or localhost, so the LAN phone test can't check it) | Lighthouse or Chrome DevTools, Application, Manifest, on a deployed HTTPS build (P2-17) |
 | Render's internal Postgres URL supports `sslmode=verify-full` (prod config requires verify-full or verify-ca) and allows direct, non-pooled connections for `earlii migrate` | Render docs, at D-04 / P2-17 |
+| Dependabot's `docker` ecosystem updates digest-pinned `FROM name:tag@sha256:...` lines in the Dockerfile (the supported-ecosystems page, read 2026-10-28, lists `docker` and `docker-compose` but doesn't say whether digests are updated); until verified, R-01 bumps the base images by hand | GitHub Dependabot docs, before adding it to `dependabot.yml` |
 | Dependabot's `docker-compose` ecosystem updates image tags in `compose.yaml` | GitHub Dependabot docs, before adding it to `dependabot.yml` |
 | Dependabot supports pnpm 12 lockfiles | Watch the first monthly Dependabot run; see the Insights → Dependency graph → Dependabot tab |
 | Greenhouse Job Board API and Lever Postings API: public access and terms allow polling | The official API docs and terms, recorded in LEGAL.md at P1-04 / P1-05 |

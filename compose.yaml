@@ -3,9 +3,29 @@
 #
 # Every published port is bound to 127.0.0.1 (a test enforces it): nothing
 # here is reachable from the Wi-Fi, and Docker's published ports would
-# otherwise bypass host firewalls such as ufw. The app modes join in P0-06,
-# when there is an image to run.
+# otherwise bypass host firewalls such as ufw.
+#
+# The app modes (P0-06, ADR-0007) run the one image under the `app` profile, so
+# `task dev:db` starts only the infrastructure. `task dev:stack` builds the
+# image and runs them all: migrate once, then api, worker and scheduler.
 name: earlii
+
+# Shared by every app service: one image, dev config, hardened.
+x-app: &app
+  image: earlii:local
+  build: .
+  # Never pulled: earlii:local only exists locally.
+  pull_policy: build
+  profiles: [app]
+  environment:
+    EARLII_ENV: dev
+    # The compose Postgres's dev-only credentials (below), over the db network.
+    EARLII_DATABASE_URL: postgres://earlii:earlii-dev-only@postgres:5432/earlii?sslmode=disable
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  # Postgres only. P0-07 adds obs, so the modes can reach the OTLP endpoint.
+  networks: [db]
 
 services:
   postgres:
@@ -47,6 +67,37 @@ services:
       - lgtm:/data
     # Its own network: Grafana can't reach Postgres.
     networks: [obs]
+
+  migrate:
+    <<: *app
+    command: [migrate]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: [api]
+    # The port task dev:api uses, so the web dev proxy reaches either. Stop one before the other.
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *app
+    command: [worker]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *app
+    command: [scheduler]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:

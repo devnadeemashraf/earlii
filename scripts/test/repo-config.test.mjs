@@ -213,8 +213,12 @@ describe("compose.yaml", () => {
     assert.doesNotMatch(compose, /^\s*(published|host_ip|target):/m);
   });
 
-  it("pins every image to an exact version", () => {
-    const images = [...compose.matchAll(/^\s*image:\s*(\S+)/gm)].map((m) => m[1]);
+  it("pins every pulled image to an exact version", () => {
+    const all = [...compose.matchAll(/^\s*image:\s*(\S+)/gm)].map((m) => m[1]);
+    // The one exemption: the image built from this repo (P0-06), declared once beside `build: .`.
+    assert.equal(all.filter((i) => i === "earlii:local").length, 1);
+    assert.match(compose, /^\s+image: earlii:local\n\s+build: \.$/m);
+    const images = all.filter((i) => i !== "earlii:local");
     assert.ok(images.length > 0);
     // Postgres versions have two parts (18.6), most images three. Never "latest" or a bare major.
     for (const i of images) assert.match(i, /:\d+\.\d+(\.\d+)?(-[a-z0-9]+)?$/, i);
