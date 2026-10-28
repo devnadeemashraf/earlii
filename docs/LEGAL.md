@@ -15,7 +15,9 @@
 | Component | Licence | Use | Note |
 | :-- | :-- | :-- | :-- |
 | mise, Task, lefthook, gitleaks, actionlint, zizmor | MIT | dev tools | no distribution |
-| golangci-lint, hadolint (planned) | GPL-3.0 | dev tools only | not linked into or shipped with Earlii, so no copyleft obligation on Earlii's code |
+| golangci-lint, hadolint | GPL-3.0 | dev tools only | not linked into or shipped with Earlii, so no copyleft obligation on Earlii's code (licences read from GitHub 2026-10-28) |
+| Trivy | Apache-2.0 | CI scanner only | not shipped (GitHub licence API, 2026-10-28) |
+| distroless `static-debian13` (the image's runtime base, P0-06) | Apache-2.0 (the distroless project); the Debian packages inside carry their own licences | **shipped in the image** | the image redistributes base-files, ca-certificates, media-types, netbase, tzdata and tzdata-legacy (listed from `docker export`, 2026-10-28); their copyright notices stay in the image under `/usr/share/doc/<package>/copyright`. Keep them, and check redistribution duties before publishing the image anywhere public. Not legal advice; ask a professional before a public image release |
 | Biome | Apache-2.0 / MIT | dev tool | — |
 | gopls | BSD-3-Clause | dev tool | — |
 | River (planned) | MPL-2.0 | linked library | file-level copyleft: modifications **to River's own files** must be shared; using it is fine |

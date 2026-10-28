@@ -84,7 +84,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-04-1 *design it*: an ADR on migration strategy (expand/contract, forward-only, locking).
 
 ### P0-05 · Contracts: Protobuf + Connect
-- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** in review (ADR-0006)
+- **Spec:** 3, Z [MVP] · **Size:** M · **Status:** done (#7) · [ADR-0006](adr/0006-connect-v2-and-codegen.md)
 - **Acceptance:**
   - `proto/earlii/v1/health.proto`;
   - `buf lint`, plus `buf breaking` against main in CI;
@@ -94,7 +94,7 @@ Expect a 25–40% slip. The usual causes are first-time Go concurrency work, job
 - **Study:** P0-05-1 *implement*: a Connect interceptor that adds request IDs and structured access logs (the middleware pattern).
 
 ### P0-06 · One image, many containers
-- **Spec:** 3 Packaging, Z [MVP] · **Size:** S · **Status:** todo
+- **Spec:** 3 Packaging, Z [MVP] · **Size:** S · **Status:** in review (#8)
 - **Acceptance:**
   - a multi-stage Dockerfile building a static binary on a minimal base;
   - the compose services `api`, `worker` and `scheduler` all run the same image;
@@ -335,7 +335,7 @@ Each epic is **L**: it gets split into S/M items in the grooming PR at M2 (R-02)
 | Posted → alert | busy < 20 min · normal < 70 min · quiet same day | SPEC section 4 |
 | AI draft first token | ≤ 1.5 s | SPEC section 4 |
 | Web initial JS | ≤ 170 kB gzip (1 kB = 1000 bytes) | our target; gated by `task build:web` since P0-03 (about 113 kB at P0-03) |
-| Docker image | ≤ 30 MB | our target |
+| Docker image | ≤ 30 MB (1 MB = 10^6 bytes, of `docker export`) | our target; gated by `task test:image` since P0-06 (17.56 MB at P0-06) |
 | API / worker memory | ≤ 256 MB RSS each | our target; fits small free-tier instances |
 | Fetch politeness | ≤ 1 req/s per host by default; honour crawl-delay | SPEC section Q |
 | Monthly cost through M2 | ₹0 beyond the domain | SPEC section 3 (free tiers first) |
@@ -414,6 +414,7 @@ Where each area is studied in depth, in the private per-PR study guides and labs
 
 | Date | Event |
 | :-- | :-- |
+| 2026-10-28 | P0-05 merged (#7). P0-06 in review (#8): one Dockerfile (static binary on distroless nonroot, 17.56 MB), allowlist build context, compose `app` profile for migrate/api/worker/scheduler, `test:image` smoke test in `task check`, hadolint and Trivy in CI (ADR-0007). D-04 isn't needed for the image and stays due at P2-17. |
 | 2026-10-28 | BP-002 merged (#6). P0-05 in review (#7): `proto/earlii/v1/health.proto`, connect-go v2 server with request-ID, access-log and recovery interceptors, generated TS client in `@earlii/api`, the web calls `Health` with a Connect GET, `buf lint`/`buf breaking`/stale-codegen checks (ADR-0006). |
 | 2026-10-28 | P0-04 merged (#5). BP-002 in review: `lint:migrations` read main's files trimmed, so every PR and main itself failed `task check`; it now reads exact bytes. P0-05 in progress, stacked on it. |
 | 2026-10-28 | BP-001 merged (#4). P0-04 in review (#5): compose stack, `earlii migrate` (River + goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, DB integration tests in CI. D-07 and D-10 decided (ADR-0005). Starting River's client moved to P0-07, which needs it. |

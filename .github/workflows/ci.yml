@@ -25,6 +25,9 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    env:
+      # Trivy only scans on Linux (below), so Windows skips installing it.
+      MISE_DISABLE_TOOLS: ${{ matrix.os == 'windows-latest' && 'go:golang.org/x/tools/gopls,trivy' || 'go:golang.org/x/tools/gopls' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,6 +37,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: task doctor
       - run: task check
+        env:
+          # test:image builds and smoke-tests the image (P0-06). Linux runners have a Linux
+          # Docker daemon, so a skip there would hide a broken image; Windows runners skip.
+          EARLII_REQUIRE_DOCKER: ${{ runner.os == 'Linux' && '1' || '' }}
+      - name: Scan the image (Trivy)
+        if: runner.os == 'Linux'
+        run: task image:scan
 
   # DB integration tests (D-10, ADR-0005): a service container, so Linux only.
   # The check jobs skip them (no database running there).

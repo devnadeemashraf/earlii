@@ -19,7 +19,8 @@ One person maintains everything, with AI help. Optimise for code that is easy to
 | First seen | When Earlii first saw a posting: the freshness clock |
 | Region pack | Per-country data and rules: location tree, title/salary/experience rules, connector list |
 | Enrichment | Per-posting-version LLM extraction, where every field has a verbatim evidence quote or "not stated" |
-| Mode | The role a single `earlii` binary runs as: `api`, `worker` or `scheduler` |
+| Mode | The role a single `earlii` binary runs as: `api`, `worker`, `scheduler`, or the one-shot `migrate` |
+| Distroless | A base image with only runtime files (CA certificates, tzdata, passwd) and no shell or package manager; the image runs on `distroless/static-debian13:nonroot` |
 | POINTER | `docs/POINTER.md`, the session handoff file |
 | BP-xxx | A bug from an earlier PR, queued in POINTER's FIX-FIRST QUEUE |
 | SCP-xx | A Spec change proposal (ROADMAP) |
@@ -31,10 +32,12 @@ One person maintains everything, with AI help. Optimise for code that is easy to
 ```text
 earlii/
 ├── AGENTS.md                 Agent instructions (single source); CLAUDE.md imports it
-├── Taskfile.yml              Task runner: setup, doctor, check, fmt, gen, lint, test, build:web, dev, dev:db, migrate, handoff
+├── Taskfile.yml              Task runner: setup, doctor, check, fmt, gen, lint, test, build:web, image, dev, dev:db, dev:stack, migrate, handoff
 ├── buf.yaml                  buf: the proto/ module, STANDARD lint and FILE breaking rules (ADR-0006)
 ├── buf.gen.yaml              buf generate: local plugins (go tool protoc-gen-go/-connect-go, protoc-gen-es)
-├── compose.yaml              Local stack: Postgres 18 and grafana/otel-lgtm, loopback-only ports (P0-04)
+├── compose.yaml              Local stack: Postgres 18 and grafana/otel-lgtm, loopback-only ports (P0-04); app modes under the `app` profile (P0-06)
+├── Dockerfile                The one image: static binary on distroless nonroot, bases pinned by digest (ADR-0007)
+├── .dockerignore             Build-context allowlist: backend module files, non-test Go, migrations only
 ├── go.work                   Go workspace: lists every Go module (today only backend/); go.work.sum is its checksums
 ├── mise.toml                 Tool version pins (local + CI)
 ├── lefthook.yml              Git hooks: format, secrets, commit-msg, pre-push
@@ -45,13 +48,14 @@ earlii/
 ├── pnpm-workspace.yaml       Workspace globs: apps/*, packages/*
 ├── scripts/                  Repo automation, zero dependencies, tested with node:test
 │   ├── lib/                  Pure logic: conventional commits, guards, handoff, pins, shell parsing,
-│   │                         bundle budget, app icon + PNG encoder, migration rules
+│   │                         bundle budget, app icon + PNG encoder, migration rules, image rules
 │   ├── claude/               Claude Code hook entry points (session-start, guard-bash, guard-edit, post-edit-format)
 │   ├── test/                 Tests for all of the above, plus config-parsing tests
 │   │   └── fixtures/ts-alias/ Reference TS project proving @/* in tsc, Vitest, Vite dev and build
 │   ├── check-migrations.mjs  lint:migrations: forward-only rules against main (ADR-0005)
 │   ├── check-text.mjs        Banned-character scan (the section sign) for files and staged changes
 │   ├── check-web-build.mjs   build:web: production build, stale route tree check, initial-JS budget
+│   ├── check-image.mjs       test:image: context allowlist, image config and size, smoke test of every mode
 │   ├── check-gen.mjs         lint:gen: buf output regenerated into a temp dir and compared (ADR-0006)
 │   ├── check-proto-breaking.mjs lint:proto: buf breaking against main's merge base
 │   ├── render-icons.mjs      Regenerates the web app's PNG icons (a test fails if they're stale)
@@ -129,7 +133,14 @@ flowchart LR
 4. **Signals.** `signal.NotifyContext` turns SIGINT/SIGTERM into a cancelled context. After the first signal the default handlers come back, so a second Ctrl-C kills the process at once.
 5. **Migrate (one-shot).** `earlii migrate` applies the schema and exits 0, or 1 on failure; it never listens (see Schema and migrations below).
 6. **Serve.** The other modes create a Postgres pool that connects lazily, so they boot while the database is down. They listen on `EARLII_HTTP_ADDR` and serve `GET /healthz` (always 200 while the process runs) and `GET /readyz` (200 only if every check passes within 2 s; 503 with per-check `ok`/`fail`, details only in the logs). The one check is `postgres` (`pool.Ping`). `api` mode also serves the Connect API (see Connect API below). Worker and scheduler only serve probes until River's client starts (P0-07).
-7. **Drain.** `httpserver.Serve` runs two goroutines in an `errgroup`: one runs `srv.Serve`, the other waits for the signal (or a serving error) and calls `srv.Shutdown` with a fresh `EARLII_SHUTDOWN_TIMEOUT` budget. `Shutdown` stops accepting, closes idle keep-alive connections at once and waits for in-flight requests; if the budget runs out, `srv.Close` cuts off the rest and `Serve` returns an error wrapping `context.DeadlineExceeded`. Exit **0** on a clean stop, **1** on any serving error or forced close. `Shutdown` closes the listener first, so `/readyz` can't report "draining" to new probes. If a load balancer ever needs to deregister an instance before the drain, that takes a pre-stop delay (consider it in P0-06).
+7. **Drain.** `httpserver.Serve` runs two goroutines in an `errgroup`: one runs `srv.Serve`, the other waits for the signal (or a serving error) and calls `srv.Shutdown` with a fresh `EARLII_SHUTDOWN_TIMEOUT` budget. `Shutdown` stops accepting, closes idle keep-alive connections at once and waits for in-flight requests; if the budget runs out, `srv.Close` cuts off the rest and `Serve` returns an error wrapping `context.DeadlineExceeded`. Exit **0** on a clean stop, **1** on any serving error or forced close. `Shutdown` closes the listener first, so `/readyz` can't report "draining" to new probes. If a load balancer ever needs to deregister an instance before the drain, that takes a pre-stop delay; P0-06 didn't need one (nothing balances yet), so decide it with the host at D-04.
+
+### Container image (P0-06, [ADR-0007](adr/0007-container-image.md))
+
+- **Build:** `task image` (`docker build --tag earlii:local .`). The golang builder (pinned to the mise Go version) cross-compiles a static binary (`CGO_ENABLED=0 -trimpath -buildvcs=false -ldflags="-s -w"`) onto `distroless/static-debian13:nonroot`. Both bases are pinned by digest (VERSIONS).
+- **Context:** `.dockerignore` lets in only `backend/go.mod`, `go.sum`, non-test `.go` files and the embedded migrations. No docs, secrets or web code can reach the daemon.
+- **Run:** `ENTRYPOINT ["/earlii"]`, no `CMD`: every container names its mode (`docker run earlii:local api`), and a container started without one exits 2. It runs as `65532:65532`, binds `:8080` (`PORT` on Render), and works with a read-only root and no capabilities. The binary is PID 1 and drains on SIGTERM itself. No shell and no `HEALTHCHECK`: platforms probe `/healthz` over HTTP.
+- **Compose:** `task dev:stack` builds the image, runs `migrate` once, then `api` (published on `127.0.0.1:8080`, the same port as `task dev:api`, so stop one before starting the other), `worker` and `scheduler`. The shared `x-app` block holds dev config and the hardening. `task dev:down` stops it all.
 
 Every connection has limits (`internal/httpserver/server.go`): 5 s to read headers, 15 s to read the request, 15 s to write the response, 60 s idle, 64 KiB of headers. The global write timeout will cut off Connect server-streaming RPCs: streaming handlers must set their own deadline with `http.ResponseController` (P0-05).
 
@@ -198,6 +209,7 @@ An empty value counts as unset. A variable set twice fails the boot. Unknown `EA
 - **Go:** table-driven unit tests next to the code, external test packages (`package x_test`) so tests use only the public API. `task test:go` adds `-race` when cgo is on (Linux CI); the Windows dev box has no gcc, so it runs without. Server tests bind `127.0.0.1:0` and synchronise with channels, never sleeps. **Integration tests** (P0-04, D-10) are `*_integration_test.go` files with `//go:build integration`. `task test:integration` runs them against `EARLII_TEST_DATABASE_URL`, or the running compose Postgres, and prints `skip:` when neither is available. In CI they run in the `integration` job against a `postgres:18.6-alpine` service container. `pgtest.NewDatabase(t)` gives each test a fresh database (`earlii_test_<16 hex>`), force-dropped at cleanup. The admin URL must be loopback, and an unset URL fails rather than skips. golangci-lint lints them (`build-tags: [integration]`). Coming next: connector fixtures with no live network in CI.
 - **Web:** Vitest + Testing Library, jsdom by default; files that need Node (the Health client adapter, the PWA contract, the dev server) start with `// @vitest-environment node`. Route tests render the real route tree with `createMemoryHistory`, a fake `api` in the router context and a QueryClient with `retry: false` (`createQueryClient`). The dev-server test boots the real Vite config and attacks it (`/@fs/`, traversal, a foreign Host, proxy route variants). The Health adapter is tested against a mock transport (`createRouterTransport` from `@connectrpc/connect`) and a real transport over a fake `fetch`.
 - **RPC:** handler tests call the generated client over `connectinprocess` (no listener); wire tests mount the server on a mux behind `httptest.NewServer` and send raw requests where the generated client would normalise them. `export_test.go` files expose test-only hooks (`rpc.NewServerWith`, `health.Waiters`). Playwright e2e for the key flows comes in P2-04 and P2-05.
+- **Image** (P0-06): `scripts/check-image.mjs` (`task test:image`) is the container smoke test. It exports the real build context through a `FROM scratch` build and checks it against the allowlist, inspects the image config, measures its size, then runs each serving mode hardened against an unreachable database (`/healthz` 200, `/readyz` 503, the Health RPC only in `api`, JSON logs, exit 0 on `docker stop`). It skips without a Linux Docker daemon unless `EARLII_REQUIRE_DOCKER=1` (CI's Linux job). The static shape of the Dockerfile, `.dockerignore` and compose is unit-tested in `scripts/test/image.test.mjs`.
 - **Required paths for every change:** happy, sad, edge and abuser. See CODING_STANDARDS section Tests.
 
 ## 8. Performance budgets
@@ -205,6 +217,8 @@ An empty value counts as unset. A variable set twice fails the boot. Unknown `EA
 The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How each is measured is added here as each budget gets a gate (planned, P0-06, P2-03, P2-07).
 
 - **Web initial JS** (gated since P0-03): `task build:web` (part of `task check`, before the tests so Vitest can't regenerate the route tree first) runs the app's Vite with Node (no shell) and `--manifest`, then `scripts/check-web-build.mjs` sums the gzip size (Node's default level) of the entry chunk and its static imports, transitively. Lazily loaded route chunks don't count. The manifest is deleted afterwards, so `dist/` doesn't ship it. It fails above 170 kB (1 kB = 1000 bytes, as Vite reports). It was 112.93 kB before P0-05, almost all React, React DOM, TanStack Router and Query; P0-05's Connect and Protobuf runtimes took it to 144.92 kB (the binary codec makes no difference).
+
+- **Docker image** (gated since P0-06): `task test:image` sums the bytes of `docker export` (the flattened root filesystem, the same on the classic and containerd stores) and fails above 30 MB (1 MB = 10^6 bytes). 17.56 MB at P0-06: the 14.2 MB binary plus distroless.
 
 ## 9. Security model
 
@@ -220,6 +234,7 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
   - The compose stack is loopback-only, which a test enforces.
   - The dev password is public and dev-only.
 - **Connect API** (P0-05): request caps after decompression, the protocol marker required, fixed error text (connect-go v2 serialises only authored errors), panics recovered without leaking, server-generated request IDs, bounded log fields, and a 1 s shared readiness cache so browser calls can't flood Postgres. Before the first authenticated RPC: a Host allow-list (DNS rebinding) and an authn interceptor (P2-10).
+- **Container** (P0-06): distroless (no shell or package manager), numeric non-root user, read-only root, all capabilities dropped and `no-new-privileges` in compose and the smoke test; an allowlisted build context; no config baked in; base images pinned by digest; Trivy fails CI on fixable HIGH and CRITICAL findings.
 - Application auth, sessions, SSRF defences, HTML sanitisation, CSP and DPDP controls (planned, P1-11, P2-09, P2-10, P2-17, E-08).
 
 ## 10. Operations
@@ -235,6 +250,8 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
 - **Run the DB integration tests:** `task dev:db`, then `task test:integration`. `task check` runs them too while the stack is up.
 - **Dev tasks set variables inline** (`KEY=value go run ...`), never in an `env:` block: Task lets the shell's environment win over `env:`, so a leftover prod `EARLII_DATABASE_URL` would be used. A test enforces this for `dev:api` and `migrate`.
 - **Run the API locally:** `task dev:db` and `task migrate` first, then `task dev:api` and `curl 127.0.0.1:8080/readyz` (503 with `postgres: fail` if the stack is down). It binds `127.0.0.1:8080` only, so nobody on the Wi-Fi can reach it; a test keeps that equal to the web dev proxy target. Ctrl-C drains and stops it; a second Ctrl-C kills it.
+- **Build and smoke-test the image:** `task test:image` (Docker Desktop running; part of `task check`). `task image:scan` runs Trivy (downloads its database). Bump a base image: `docker pull <image>:<tag>`, copy the digest from `docker image inspect --format '{{index .RepoDigests 0}}'` into the Dockerfile and VERSIONS, then run `task test:image` and `task image:scan`.
+- **Run every mode in containers:** stop any `task dev:api` first, then `task dev:stack`, `curl 127.0.0.1:8080/readyz`, and `docker compose --profile app logs -f`. `task dev:down` stops everything.
 - **Run the web app:** `task dev:api` in one terminal and `task dev:web` in another, then open http://localhost:5173. On a phone, use `task dev:web:lan` and the printed Network URL (same Wi-Fi).
 - **Add a route:** create `apps/web/src/routes/<path>.tsx` exporting `Route = createFileRoute("/<path>")({...})`. The router plugin regenerates `routeTree.gen.ts` whenever Vite or Vitest runs; commit it (`task build:web` fails if it's stale). Give the route a `pendingComponent` skeleton and an `errorComponent` with fixed copy. Keep files that aren't routes (tests too) out of `routes/`.
 - **Add a shadcn component:** `cd apps/web && pnpm dlx shadcn@4.23.0 add <name>`. Review the copied code, point its `cn` import at `@/lib/utils` if the CLI changed it, pin any dependency it added exactly, and record new ones in VERSIONS.
@@ -255,3 +272,4 @@ The canonical budgets live in [ROADMAP section Budgets](ROADMAP.md#budgets). How
 | [0004](adr/0004-typescript-path-aliases.md) | TypeScript path aliases | Accepted |
 | [0005](adr/0005-migrations.md) | Migrations: goose in the binary, River first, an explicit migrate mode (D-07, D-10) | Accepted |
 | [0006](adr/0006-connect-v2-and-codegen.md) | connect-go v2, local codegen pinned to the runtimes, and the Health contract | Accepted |
+| [0007](adr/0007-container-image.md) | The container image: static binary on distroless, an allowlisted context, no default mode | Accepted |

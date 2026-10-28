@@ -43,6 +43,8 @@ export const PROBES = {
   zizmor: ["zizmor", ["--version"]],
   buf: ["buf", ["--version"]],
   sqlc: ["sqlc", ["version"]],
+  hadolint: ["hadolint", ["--version"]],
+  trivy: ["trivy", ["--version"]],
   "go:golang.org/x/tools/gopls": ["gopls", ["version"]],
 };
 

@@ -57,6 +57,7 @@ tasks:
       - task: lint:gen
       - task: lint:migrations
       - task: lint:actions
+      - task: lint:docker
       - task: lint:secrets
 
   lint:ts:
@@ -118,6 +119,11 @@ tasks:
       - actionlint
       - zizmor --offline .github/workflows
 
+  lint:docker:
+    desc: Lint the Dockerfile (hadolint, which runs ShellCheck on RUN lines)
+    cmds:
+      - hadolint Dockerfile
+
   lint:secrets:
     desc: Scan git history for committed secrets
     cmds:
@@ -129,6 +135,7 @@ tasks:
       - task: test:scripts
       - task: test:go
       - task: test:integration
+      - task: test:image
       - task: test:web
 
   test:scripts:
@@ -173,6 +180,11 @@ tasks:
         if [ "$(go env CGO_ENABLED)" = "1" ]; then race="-race"; fi
         cd backend && EARLII_TEST_DATABASE_URL="$url" go test $race -tags integration -count=1 ./...
 
+  test:image:
+    desc: Build the image and smoke-test every mode in it (skips without a Linux Docker daemon, unless EARLII_REQUIRE_DOCKER=1)
+    cmds:
+      - node scripts/check-image.mjs
+
   test:web:
     desc: Web tests
     cmds:
@@ -199,6 +211,16 @@ tasks:
       - sqlc generate -f backend/sqlc.yaml
       - buf generate
 
+  image:
+    desc: Build the one image as earlii:local (ADR-0007)
+    cmds:
+      - docker build --tag earlii:local .
+
+  image:scan:
+    desc: Scan earlii:local for fixable HIGH and CRITICAL vulnerabilities (Trivy; downloads its database)
+    cmds:
+      - trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress earlii:local
+
   dev:
     desc: Start Postgres and Grafana, migrate, then run the API and the web app (Ctrl-C stops both)
     cmds:
@@ -215,10 +237,15 @@ tasks:
     cmds:
       - docker compose up -d --wait
 
-  dev:down:
-    desc: Stop the local stack (data stays in Docker volumes; add -- -v to wipe it)
+  dev:stack:
+    desc: Build the image and run every mode in containers (migrate, then api on 127.0.0.1:8080, worker, scheduler)
     cmds:
-      - docker compose down {{.CLI_ARGS}}
+      - docker compose --profile app up --build --detach --wait
+
+  dev:down:
+    desc: Stop the local stack, app containers included (data stays in Docker volumes; add -- -v to wipe it)
+    cmds:
+      - docker compose --profile app down {{.CLI_ARGS}}
 
   # Variables are set inline, not in env: (Task lets the shell's environment win
   # over env:, so a terminal still holding a prod URL would be used).

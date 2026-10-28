@@ -1,0 +1,11 @@
+# An allowlist (ADR-0007): ignore everything, then let in only what `go build ./cmd/earlii` reads.
+# Nothing else may reach the build context: no docs (SPEC and docs/learning/ are private), no
+# secrets, no web code. scripts/check-image.mjs exports the real context and checks it.
+*
+!backend/go.mod
+!backend/go.sum
+!backend/cmd/**/*.go
+!backend/internal/**/*.go
+!backend/gen/**/*.go
+!backend/internal/postgres/migrations/*.sql
+**/*_test.go

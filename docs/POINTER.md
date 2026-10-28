@@ -5,7 +5,7 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **build** (switched 2026-10-27): the AI builds every item; each PR gets a private study guide (AGENTS.md section 5).
-- P0-01 to P0-04, BP-001 and BP-002 (#1 to #6) are merged; main's CI is green again. **P0-05 (Protobuf + Connect) is in review as #7.**
+- P0-01 to P0-05, BP-001 and BP-002 (#1 to #7) are merged. **P0-06 (the container image) is in review as #8.**
 - Works now:
   - Go: `earlii api|worker|scheduler|migrate`, env config (`EARLII_DATABASE_URL` required; prod demands verify-full/verify-ca TLS), JSON `slog`, `/healthz` + `/readyz` (a `postgres` check, shared and cached 1 s), graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
   - DB: `task dev` (compose Postgres 18 + Grafana/OTLP, migrate, API, web); `earlii migrate` applies River's 8 migrations then ours (goose, embedded) under one advisory lock (ADR-0005); sqlc into `backend/gen/db` (`task gen`); `lint:migrations` enforces forward-only; DB integration tests run locally with the stack up and in CI's `integration` job;
@@ -14,6 +14,7 @@
   - a PWA manifest with SVG, 192/512, maskable and Apple icons (rendered by `scripts/render-icons.mjs`); no service worker yet;
   - `task dev:web` (localhost) and `task dev:web:lan` (phone); the dev server is locked down (fs allow/deny, Host check, one exact proxied procedure);
   - `task check` now runs `build:web`: the production build, a stale route tree check and the initial-JS budget (144.92 kB of 170 kB gzip; Connect added 31.99 kB).
+  - image (ADR-0007): one `Dockerfile` (static binary on distroless `nonroot`, 17.56 MB of 30 MB), an allowlist `.dockerignore`; `task test:image` (in `task check` when Docker runs; required on CI Linux) smoke-tests every mode hardened; `lint:docker` (hadolint), `task image:scan` (Trivy, CI); `task dev:stack` runs migrate, api, worker and scheduler in compose (`app` profile).
 - No tables yet (P1-01). River's client isn't started yet (P0-07).
 
 ## FIX-FIRST QUEUE
@@ -22,19 +23,19 @@ _Empty._ (BP-002 merged in #6.)
 
 ## NEXT UP
 
-**P0-06 · One image, many containers** (ROADMAP section Phase 0), once P0-05 (#7) is merged.
+**P0-07 · Observability base** (ROADMAP section Phase 0), once P0-06 (#8) is merged. Size M: run architect and red-team first.
 
-- **Why now:** every mode already runs from one binary; deploys (D-04) and the P0-07 trace demo need it containerised.
-- **Start at:** a multi-stage Dockerfile building a static `CGO_ENABLED=0` binary, compose services `api`, `worker`, `scheduler` on that image, hadolint + Trivy in CI. Decide D-04 (open question 3) first.
-- **Done when:** the P0-06 acceptance list in ROADMAP is met (image at most 30 MB, CI smoke test hits `/healthz`).
-- **Study:** P0-06-1, explain each image layer and get under budget.
+- **Why now:** River's client must start in worker mode before any P1 pipeline work, and every later item gets traces and RED metrics for free.
+- **Start at:** OTel SDK wiring in `backend/internal/` (traces, metrics, slog bridge) to the compose `lgtm` OTLP endpoint (the `app` services then join the `obs` network); River client in `worker`, enqueue from `api`; trace context in job args.
+- **Done when:** the P0-07 acceptance list in ROADMAP is met (one trace spans API to job to worker in local Grafana; an in-memory exporter test).
+- **Study:** P0-07-1, carrying trace context through job args.
 
 ## Open questions for the human
 
 1. **Make `integration` a required check** on the `protect-main` ruleset (#5 adds the job; today 3 checks are required).
 2. **SPEC purge follow-up:** ask GitHub Support to drop cached views of the old P0-01 commits (docs/SETUP.md "Purging leaked files"), if not done.
-3. **Hosting the worker and DB (D-04):** prod config requires a certificate-verifying `sslmode` and `earlii migrate` needs a direct (non-pooled) connection; check Render supports both (VERSIONS UNVERIFIED). Render's free tier has no background workers. A worker run as a free web service sleeps after 15 min idle, which would break polling. Decide before P0-06.
-4. **npm supply-chain settings:** pnpm 12 supports an explicit build-script allowlist (`allowBuilds`); its minimum release age is on by default (P0-05 hit it: connect-es 2.3.0 was a day old, so 2.2.0 is pinned, with no exclusion). Pin the age explicitly in `pnpm-workspace.yaml` in a small chore PR (R-01)?
+3. **Hosting the worker and DB (D-04, due P2-17 per ROADMAP):** the image is host-neutral, so P0-06 didn't need it. Still open: Render `verify-full` and a direct connection for `earlii migrate` (VERSIONS UNVERIFIED); Render's free tier has no background workers, and a free web service sleeps after 15 min idle, which breaks polling.
+4. **npm supply-chain settings:** pnpm 12 supports an explicit build-script allowlist (`allowBuilds`); its minimum release age is on by default (P0-05 hit it: connect-es 2.3.0 was a day old, so 2.2.0 is pinned, with no exclusion). Pin the age explicitly in `pnpm-workspace.yaml` in a small chore PR (R-01)? Same chore: commit a `mise.lock` (per-platform checksums; `mise lock` exists) so pinned tools like Trivy can't change under a tag?
 5. Optional: set `CONTEXT7_API_KEY` to enable the docs-lookup MCP (docs/AI_WORKFLOW.md). Optional: `npx playwright install chrome` so the Playwright MCP (`/snapshot`) can run; it isn't installed on this box.
 
 ## Environment notes and gotchas
@@ -51,7 +52,7 @@ _Empty._ (BP-002 merged in #6.)
 - Web: `routeTree.gen.ts` is regenerated whenever Vite or Vitest runs. Commit it with any route change (`build:web` fails if it's stale). Don't put non-route files in `src/routes/`. Vitest's jsdom AbortSignal isn't accepted by Node's fetch: test fetch code with `// @vitest-environment node`.
 - shadcn CLI 4.23.0: `init` hangs on a preset prompt without `--preset`, and swaps `cn()` to a third-party package. Use `add` only, and review what it copies (HANDBOOK section 11).
 - Tests must never depend on the gitignored private files (SPEC, `docs/learning/`): CI has none, and a missing file can pass or fail for the wrong reason (P0-03 CI run 1). Plant look-alike fixtures instead, as `apps/web/src/dev-server.test.ts` does.
-- Windows lets a second process bind `127.0.0.1:8080` while another holds `0.0.0.0:8080`, so a stale `task dev:api` keeps serving the Wi-Fi with no "address in use" error. Check `netstat -ano | grep :8080` before trusting a bind.
+- Windows lets a second process bind `127.0.0.1:8080` while another holds `0.0.0.0:8080`, so a stale `task dev:api` keeps serving the Wi-Fi with no "address in use" error. Check `netstat -ano | grep :8080` before trusting a bind. A stale `earlii.exe` on 8080 also stops `task dev:stack`'s api (P0-06).
 - **Task lets the shell's environment win over a task's `env:` block.** Tasks that run the binary set variables inline (`KEY=value go run ...`); a test enforces it.
 - Postgres: `pg_isready` without `-h` probes the unix socket, which the image's first-run init serves before restarting. Health checks use `-h 127.0.0.1`. The Windows box's Docker Desktop needs starting before `task dev`.
 - slog's JSON handler encodes nested structs with `encoding/json`, ignoring `String`/`LogValue` on fields: `config.Secret` also implements `MarshalText`.
@@ -63,13 +64,13 @@ _Empty._ (BP-002 merged in #6.)
 ## Learning
 
 - **Private study guides** live in `docs/learning/` (gitignored: never `git add` it; the Bash guard denies it). Index and progress: `docs/learning/README.md`.
-- **Latest:** P0-05 (`docs/learning/P0-05-contracts-connect/`), then BP-002, P0-04, BP-001, P0-03, P0-02, P0-01. Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README.
-- **Next guide:** P0-06, written in that PR after `/handoff`.
+- **Latest:** P0-06 (`docs/learning/P0-06-container-image/`), then P0-05, BP-002, P0-04, BP-001, P0-03, P0-02, P0-01. Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README. **Next guide:** P0-07.
 
 ## Recent history
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
+| #8 | P0-06 | One image (ADR-0007): multi-stage Dockerfile, static binary on distroless nonroot (17.56 MB), allowlist context, no default mode; compose `app` profile runs migrate/api/worker/scheduler hardened; `test:image` smoke-tests every mode (healthz, readyz, rpc, SIGTERM drain as PID 1); hadolint, Trivy in CI | yes: stop any `task dev:api`, `task dev:stack`, curl `127.0.0.1:8080/readyz` (200), `task dev:down` |
 | #7 | P0-05 | `health.proto`, buf lint/breaking/stale-codegen checks, connect-go v2 server (request ID, access log, recovery; 64 KiB cap; protocol marker required), shared cached readiness `Checker`, `@earlii/api` TS client, web calls `Health` by Connect GET through a guarded fetch (ADR-0006) | yes: `task dev`, open http://localhost:5173 (status card), `task dev:down`, reload (degraded card), and see the `rpc` log line |
 | #6 | BP-002 | `lint:migrations` reads main's migrations byte-exact (`showFile`), fixing a false "changed after merge" that turned main red; end-to-end CLI test | no |
 | #5 | P0-04 | Compose stack (Postgres 18, otel-lgtm; loopback only), `earlii migrate` (River then goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, strict DB URL config, forward-only lint, DB integration tests in CI (ADR-0005) | yes: `task dev`, curl `127.0.0.1:8080/readyz` (200), `task dev:down`, curl again (503) |
