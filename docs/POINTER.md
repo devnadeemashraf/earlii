@@ -5,7 +5,7 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **build** (switched 2026-10-27): the AI builds every item; each PR gets a private study guide (AGENTS.md section 5).
-- P0-01 to P0-04 and BP-001 (#1 to #5) are merged. **BP-002 (#6) is in review** (main's CI is red until it merges). **P0-05 (Protobuf + Connect) is in review as #7**, stacked on #6: merge #6 first.
+- P0-01 to P0-04, BP-001 and BP-002 (#1 to #6) are merged; main's CI is green again. **P0-05 (Protobuf + Connect) is in review as #7.**
 - Works now:
   - Go: `earlii api|worker|scheduler|migrate`, env config (`EARLII_DATABASE_URL` required; prod demands verify-full/verify-ca TLS), JSON `slog`, `/healthz` + `/readyz` (a `postgres` check, shared and cached 1 s), graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
   - DB: `task dev` (compose Postgres 18 + Grafana/OTLP, migrate, API, web); `earlii migrate` applies River's 8 migrations then ours (goose, embedded) under one advisory lock (ADR-0005); sqlc into `backend/gen/db` (`task gen`); `lint:migrations` enforces forward-only; DB integration tests run locally with the stack up and in CI's `integration` job;
@@ -18,11 +18,11 @@
 
 ## FIX-FIRST QUEUE
 
-- **BP-002** (in review, #6): `lint:migrations` reported every migration on main as "changed after merge", so `task check` has failed on main and on every branch since #5. Evidence: CI run for 48525ab (both check legs); `scripts/check-migrations.mjs:30` read main's files through `git()`, which trims stdout and drops the final newline. Fix: `showFile` returns exact bytes; covered end to end by `scripts/test/check-migrations.test.mjs`.
+_Empty._ (BP-002 merged in #6.)
 
 ## NEXT UP
 
-**P0-06 · One image, many containers** (ROADMAP section Phase 0), once #6 and P0-05 are merged.
+**P0-06 · One image, many containers** (ROADMAP section Phase 0), once P0-05 (#7) is merged.
 
 - **Why now:** every mode already runs from one binary; deploys (D-04) and the P0-07 trace demo need it containerised.
 - **Start at:** a multi-stage Dockerfile building a static `CGO_ENABLED=0` binary, compose services `api`, `worker`, `scheduler` on that image, hadolint + Trivy in CI. Decide D-04 (open question 3) first.
