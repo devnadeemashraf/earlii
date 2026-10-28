@@ -5,7 +5,7 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **build** (switched 2026-10-27): the AI builds every item; each PR gets a private study guide (AGENTS.md section 5).
-- P0-01 to P0-04 and BP-001 (#1 to #5) are merged. **BP-002 (#6) is in review** (main's CI is red until it merges). **P0-05 (Protobuf + Connect) is in review**, stacked on #6: merge #6 first.
+- P0-01 to P0-04 and BP-001 (#1 to #5) are merged. **BP-002 (#6) is in review** (main's CI is red until it merges). **P0-05 (Protobuf + Connect) is in review as #7**, stacked on #6: merge #6 first.
 - Works now:
   - Go: `earlii api|worker|scheduler|migrate`, env config (`EARLII_DATABASE_URL` required; prod demands verify-full/verify-ca TLS), JSON `slog`, `/healthz` + `/readyz` (a `postgres` check, shared and cached 1 s), graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
   - DB: `task dev` (compose Postgres 18 + Grafana/OTLP, migrate, API, web); `earlii migrate` applies River's 8 migrations then ours (goose, embedded) under one advisory lock (ADR-0005); sqlc into `backend/gen/db` (`task gen`); `lint:migrations` enforces forward-only; DB integration tests run locally with the stack up and in CI's `integration` job;
@@ -70,7 +70,7 @@
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
-| P0-05 PR | P0-05 | `health.proto`, buf lint/breaking/stale-codegen checks, connect-go v2 server (request ID, access log, recovery; 64 KiB cap; protocol marker required), shared cached readiness `Checker`, `@earlii/api` TS client, web calls `Health` by Connect GET through a guarded fetch (ADR-0006) | yes: `task dev`, open http://localhost:5173 (status card), `task dev:down`, reload (degraded card), and see the `rpc` log line |
+| #7 | P0-05 | `health.proto`, buf lint/breaking/stale-codegen checks, connect-go v2 server (request ID, access log, recovery; 64 KiB cap; protocol marker required), shared cached readiness `Checker`, `@earlii/api` TS client, web calls `Health` by Connect GET through a guarded fetch (ADR-0006) | yes: `task dev`, open http://localhost:5173 (status card), `task dev:down`, reload (degraded card), and see the `rpc` log line |
 | #6 | BP-002 | `lint:migrations` reads main's migrations byte-exact (`showFile`), fixing a false "changed after merge" that turned main red; end-to-end CLI test | no |
 | #5 | P0-04 | Compose stack (Postgres 18, otel-lgtm; loopback only), `earlii migrate` (River then goose under one advisory lock), sqlc into `gen/db`, Postgres readiness, strict DB URL config, forward-only lint, DB integration tests in CI (ADR-0005) | yes: `task dev`, curl `127.0.0.1:8080/readyz` (200), `task dev:down`, curl again (503) |
 | #4 | BP-001 | `task dev:api` binds `127.0.0.1:8080` only; a test keeps it equal to the web dev proxy target | yes: `task dev:api`, curl `127.0.0.1:8080/readyz` (200) and `<LAN IP>:8080/readyz` (refused) |
