@@ -104,7 +104,7 @@ func (c *Checker) Check(ctx context.Context) (Report, error) {
 	if f == nil {
 		// The run outlives any one caller (others may join it), so it doesn't
 		// inherit ctx's cancellation, and stops when its last waiter leaves. It
-		// keeps the first caller's values, so its log lines (and, from P0-07,
+		// keeps the first caller's values, so its log lines (and, from P0-07a,
 		// its trace) belong to that caller's request, not to every joiner.
 		runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 		f = &flight{done: make(chan struct{}), cancel: cancel}
@@ -162,7 +162,7 @@ func (c *Checker) fly(ctx context.Context, f *flight) {
 func (c *Checker) run(ctx context.Context) Report {
 	ctx, cancel := context.WithTimeout(ctx, c.cfg.Timeout)
 	defer cancel()
-	// Logs are written after ctx may be done; context-aware handlers (P0-07)
+	// Logs are written after ctx may be done; context-aware handlers (P0-07a)
 	// must not drop them.
 	logCtx := context.WithoutCancel(ctx)
 

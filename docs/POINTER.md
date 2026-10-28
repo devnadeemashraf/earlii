@@ -5,7 +5,7 @@
 ## State
 
 - **Phase 0 · Bootstrap.** Mode: **build** (switched 2026-10-27): the AI builds every item; each PR gets a private study guide (AGENTS.md section 5).
-- P0-01 to P0-05, BP-001 and BP-002 (#1 to #7) are merged. **P0-06 (the container image) is in review as #8.**
+- P0-01 to P0-06, BP-001 and BP-002 (#1 to #8) are merged. **The P0-07 split (docs-only grooming) is in review as #9.**
 - Works now:
   - Go: `earlii api|worker|scheduler|migrate`, env config (`EARLII_DATABASE_URL` required; prod demands verify-full/verify-ca TLS), JSON `slog`, `/healthz` + `/readyz` (a `postgres` check, shared and cached 1 s), graceful drain, `task dev:api` (loopback only: `127.0.0.1:8080`);
   - DB: `task dev` (compose Postgres 18 + Grafana/OTLP, migrate, API, web); `earlii migrate` applies River's 8 migrations then ours (goose, embedded) under one advisory lock (ADR-0005); sqlc into `backend/gen/db` (`task gen`); `lint:migrations` enforces forward-only; DB integration tests run locally with the stack up and in CI's `integration` job;
@@ -14,8 +14,8 @@
   - a PWA manifest with SVG, 192/512, maskable and Apple icons (rendered by `scripts/render-icons.mjs`); no service worker yet;
   - `task dev:web` (localhost) and `task dev:web:lan` (phone); the dev server is locked down (fs allow/deny, Host check, one exact proxied procedure);
   - `task check` now runs `build:web`: the production build, a stale route tree check and the initial-JS budget (144.92 kB of 170 kB gzip; Connect added 31.99 kB).
-  - image (ADR-0007): one `Dockerfile` (static binary on distroless `nonroot`, 17.56 MB of 30 MB), an allowlist `.dockerignore`; `task test:image` (in `task check` when Docker runs; required on CI Linux) smoke-tests every mode hardened; `lint:docker` (hadolint), `task image:scan` (Trivy, CI); `task dev:stack` runs migrate, api, worker and scheduler in compose (`app` profile).
-- No tables yet (P1-01). River's client isn't started yet (P0-07).
+  - image (ADR-0007): one `Dockerfile` (static binary on distroless `nonroot`, 17.56 MB; the budget is now 40 MB, but the gate in `scripts/lib/image.mjs` stays at 30 MB until P0-07a), an allowlist `.dockerignore`; `task test:image` (in `task check` when Docker runs; required on CI Linux) smoke-tests every mode hardened; `lint:docker` (hadolint), `task image:scan` (Trivy, CI); `task dev:stack` runs migrate, api, worker and scheduler in compose (`app` profile).
+- No tables yet (P1-01). River's client isn't started yet (P0-07b).
 
 ## FIX-FIRST QUEUE
 
@@ -23,12 +23,12 @@ _Empty._ (BP-002 merged in #6.)
 
 ## NEXT UP
 
-**P0-07 · Observability base** (ROADMAP section Phase 0), once P0-06 (#8) is merged. Size M: run architect and red-team first.
+**P0-07a · Telemetry base** (ROADMAP section Phase 0), once #9 is merged. Size M: the architect has run; run red-team on the design before the tests.
 
-- **Why now:** River's client must start in worker mode before any P1 pipeline work, and every later item gets traces and RED metrics for free.
-- **Start at:** OTel SDK wiring in `backend/internal/` (traces, metrics, slog bridge) to the compose `lgtm` OTLP endpoint (the `app` services then join the `obs` network); River client in `worker`, enqueue from `api`; trace context in job args.
-- **Done when:** the P0-07 acceptance list in ROADMAP is met (one trace spans API to job to worker in local Grafana; an in-memory exporter test).
-- **Study:** P0-07-1, carrying trace context through job args.
+- **Why now:** every later item gets traces, RED metrics and trace-tagged logs for free, and P0-07b (River in worker mode, the trace from API to worker) builds on it.
+- **Start at:** the local design notes `docs/learning/P0-07-split/design-notes.md` (gitignored: a fresh clone won't have them; ROADMAP P0-07a holds the decisions). Then `internal/config` (`EARLII_OTLP_*`, the `OTEL_*` ban), a new `internal/telemetry`, a telemetry interceptor in `internal/rpc`, otelhttp around the mux in `cmd/earlii`, compose `x-app` on `[db, obs]`, and `IMAGE_BUDGET_BYTES` set to 40 MB. Write ADR-0008.
+- **Done when:** the P0-07a acceptance list in ROADMAP is met, and Health traces, metrics and logs show in local Grafana.
+- **Study:** P0-07a-1, the OTel SDK pipeline and metric cardinality.
 
 ## Open questions for the human
 
@@ -56,7 +56,7 @@ _Empty._ (BP-002 merged in #6.)
 - **Task lets the shell's environment win over a task's `env:` block.** Tasks that run the binary set variables inline (`KEY=value go run ...`); a test enforces it.
 - Postgres: `pg_isready` without `-h` probes the unix socket, which the image's first-run init serves before restarting. Health checks use `-h 127.0.0.1`. The Windows box's Docker Desktop needs starting before `task dev`.
 - slog's JSON handler encodes nested structs with `encoding/json`, ignoring `String`/`LogValue` on fields: `config.Secret` also implements `MarshalText`.
-- connect-go is **v2** (`connectrpc.com/connect/v2`): agents remember v1's API (`connect.Request[T]`, `NewXxxHandler`). Check every call with `go doc` (ADR-0006). wrapcheck needs `connect(/v2)?` in its signature regexps.
+- connect-go is **v2** (`connectrpc.com/connect/v2`), and `otelconnect/v2` doesn't exist (proxy 404). Agents remember v1's API (`connect.Request[T]`, `NewXxxHandler`). Check every call with `go doc` (ADR-0006). wrapcheck needs `connect(/v2)?` in its signature regexps.
 - A Claude `Edit`/`Write` can turn a `\u202e`-style escape into the raw character; build such test strings at runtime (`string(rune(0x202e))`, `String.fromCodePoint`).
 - `scripts/lib/git.mjs` `git()` trims stdout: fine for refs and lists, wrong for file contents. Read files at a commit with `showFile` (BP-002).
 - In Node scripts, `String.replace(a, b)` treats `` $` ``, `$'` and `$&` in `b` as patterns, which bites when `b` is Markdown with backticks. Pass `() => b`.
@@ -64,12 +64,13 @@ _Empty._ (BP-002 merged in #6.)
 ## Learning
 
 - **Private study guides** live in `docs/learning/` (gitignored: never `git add` it; the Bash guard denies it). Index and progress: `docs/learning/README.md`.
-- **Latest:** P0-06 (`docs/learning/P0-06-container-image/`), then P0-05, BP-002, P0-04, BP-001, P0-03, P0-02, P0-01. Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README. **Next guide:** P0-07.
+- **Latest:** the P0-07 split (`docs/learning/P0-07-split/`: the design decisions and the architect's notes), then P0-06, P0-05, BP-002, P0-04, BP-001, P0-03, P0-02, P0-01. Labs: `cd docs/learning/<ID>-<slug>/labs` and follow its README. **Next guide:** P0-07a.
 
 ## Recent history
 
 | PR | ID | Summary | Manual test? |
 | :-- | :-- | :-- | :-- |
+| #9 | P0-07 split | Docs-only grooming: P0-07 becomes P0-07a (telemetry base) and P0-07b (River and the trace from API to worker); image budget raised to 40 MB (the OTLP exporters link gRPC); trace context goes in job metadata; VERSIONS fixed (`otelconnect/v2` doesn't exist) | no |
 | #8 | P0-06 | One image (ADR-0007): multi-stage Dockerfile, static binary on distroless nonroot (17.56 MB), allowlist context, no default mode; compose `app` profile runs migrate/api/worker/scheduler hardened; `test:image` smoke-tests every mode (healthz, readyz, rpc, SIGTERM drain as PID 1); hadolint, Trivy in CI | yes: stop any `task dev:api`, `task dev:stack`, curl `127.0.0.1:8080/readyz` (200), `task dev:down` |
 | #7 | P0-05 | `health.proto`, buf lint/breaking/stale-codegen checks, connect-go v2 server (request ID, access log, recovery; 64 KiB cap; protocol marker required), shared cached readiness `Checker`, `@earlii/api` TS client, web calls `Health` by Connect GET through a guarded fetch (ADR-0006) | yes: `task dev`, open http://localhost:5173 (status card), `task dev:down`, reload (degraded card), and see the `rpc` log line |
 | #6 | BP-002 | `lint:migrations` reads main's migrations byte-exact (`showFile`), fixing a false "changed after merge" that turned main red; end-to-end CLI test | no |
@@ -77,4 +78,3 @@ _Empty._ (BP-002 merged in #6.)
 | #4 | BP-001 | `task dev:api` binds `127.0.0.1:8080` only; a test keeps it equal to the web dev proxy target | yes: `task dev:api`, curl `127.0.0.1:8080/readyz` (200) and `<LAN IP>:8080/readyz` (refused) |
 | #3 | P0-03 | Web skeleton: Vite/React/TanStack/Tailwind/shadcn, skeleton then content, PWA manifest, locked-down dev server, bundle gate | yes: `task dev:api` + `task dev:web:lan`, open on a phone |
 | #2 | P0-02 | Go skeleton: modes, env config, JSON logs, health probes, hardened server, graceful drain; switch to build mode | yes: `task dev:api`, curl the probes, Ctrl-C |
-| #1 | P0-01 | Starter kit: docs, tooling, CI, hooks, AI harness, tooling research | yes: ROADMAP P0-01 🧪 |

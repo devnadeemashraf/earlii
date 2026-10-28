@@ -90,7 +90,7 @@ func accessLog(logger *slog.Logger) connect.ServerInterceptor {
 					attrs = append(attrs, slog.String("client_request_id", v))
 				}
 			}
-			// Logged after ctx may be done; context-aware handlers (P0-07) must
+			// Logged after ctx may be done; context-aware handlers (P0-07a) must
 			// not drop the line.
 			logger.LogAttrs(context.WithoutCancel(ctx), level, "rpc", attrs...)
 			return err

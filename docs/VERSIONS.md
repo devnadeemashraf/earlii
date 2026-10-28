@@ -82,7 +82,11 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 
 | Package | Latest | For | Verified | Source |
 | :-- | :-- | :-- | :-- | :-- |
-| OpenTelemetry Go | v1.47.0 | P0-07 | 2026-10-27 | Go module proxy |
+| OpenTelemetry Go (`otel`, `sdk`, `sdk/metric`, `sdk/log`, `otel/log`, `otlptracehttp`, `otlpmetrichttp`) | v1.47.0 (2026-10-02); ships semconv v1.43.0 | P0-07a | 2026-10-28 | Go module proxy; `semconv/v1.43.0` in the module |
+| `otlploghttp` | v0.23.0 | P0-07a | 2026-10-28 | Go module proxy |
+| `go.opentelemetry.io/contrib/bridges/otelslog` | v0.21.0 | P0-07a | 2026-10-28 | Go module proxy |
+| `go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp` | v0.72.0 | P0-07a | 2026-10-28 | Go module proxy |
+| `github.com/riverqueue/rivercontrib/otelriver` (reference only, not planned) | v0.12.0 (2026-07-24, built against River v0.41) | P0-07b | 2026-10-28 | Go module proxy |
 | motion | 14.6.0 | P2-02 | 2026-10-27 | npm registry |
 | Expo | 58.0.19 | E-07 | 2026-10-27 | npm registry |
 | React Native | 0.88.0 | E-07 | 2026-10-27 | npm registry |
@@ -142,7 +146,7 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | connect-go v2.0.2: wrong HTTP method (405), unsupported content type (415), unknown compression and a bad timeout header are rejected in `connecthttp` before the interceptor chain, so they get no access log line | 2026-10-28 | `connecthttp/handler.go` (`ServeHTTP`) |
 | connect-go v2.0.2: `WithRequireConnectProtocolHeader` makes a Connect GET carry `connect=v1` and a unary POST carry `Connect-Protocol-Version`; gRPC and gRPC-Web are unaffected and can't be turned off server-side | 2026-10-28 | `go doc connectrpc.com/connect/v2/connecthttp.WithRequireConnectProtocolHeader`; `connecthttp/protocol_connect.go`; proven by `TestRequiresConnectProtocolMarker` |
 | connect-go v2.0.2: only an authored `*connect.Error` is serialised; any other error reaches the client as a bare code | 2026-10-28 | `go doc connectrpc.com/connect/v2.Error`; proven by `TestPlainErrorTextNeverReachesClient` |
-| connect-go v2: `connectrpc.com/otelconnect/v2` v2.0.0 exists; `validate/v2`, `authn/v2` and `grpchealth/v2` were not found on the module proxy | 2026-10-28 | `go list -m <module>@latest` |
+| connect-go v2: **`connectrpc.com/otelconnect/v2` does not exist** (corrected 2026-10-28: this row said v2.0.0 existed; the proxy answers 404 and `connectrpc.com/otelconnect` stops at v0.7.x, for connect v1). `validate/v2`, `authn/v2` and `grpchealth/v2` don't exist either. P0-07a writes its own interceptor | 2026-10-28 | `curl https://proxy.golang.org/connectrpc.com/otelconnect/v2/@v/list`; `go list -m connectrpc.com/otelconnect/v2@latest` |
 | connect-web 2.2.0 `ConnectTransportOptions`: `baseUrl`, `useBinaryFormat` (JSON by default), `useHttpGet`, `fetch`, `defaultTimeoutMs`; no `readMaxBytes` and no redirect option | 2026-10-28 | `@connectrpc/connect-web/dist/esm/connect-transport.d.ts` |
 | pnpm 12.15.0 applies a default minimum release age (about one day) and, on `pnpm add` of a newer package, writes a `minimumReleaseAgeExclude` entry into `pnpm-workspace.yaml`; a lockfile holding such a package then fails verification | 2026-10-28 | `pnpm add @connectrpc/connect@2.3.0` output |
 | Go 1.24+ `tool` directives: `go tool <name>` runs from the repo root under `go.work`, so buf can call `go tool protoc-gen-go` as a local plugin | 2026-10-28 | `go tool protoc-gen-go --version` (v1.36.12) on the Windows dev box |
@@ -150,13 +154,16 @@ Verified 2026-10-27 with `npm view <pkg> version` and their `peerDependencies` (
 | `-ldflags="-s -w"` shrinks the linux/amd64 `earlii` binary from 20,668,076 to 14,205,088 bytes (31%) | 2026-10-28 | `go build -trimpath -buildvcs=false` with and without the flags, `ls -l` |
 | The engine's built-in Dockerfile frontend (Docker 29.9.1) supports `RUN --mount=type=cache` and `FROM --platform=$BUILDPLATFORM` with no `# syntax=` line | 2026-10-28 | `docker build` of the P0-06 Dockerfile |
 | A Go binary running as PID 1 with `signal.NotifyContext` gets SIGTERM from `docker stop` and drains (exit 0 in about 0.5 s, every serving mode); it starts no children, so no init (tini) is needed | 2026-10-28 | `task test:image` |
+| Every official OTLP exporter (HTTP or gRPC) links gRPC and grpc-gateway through `go.opentelemetry.io/proto/otlp/collector`. Stripped linux/amd64 probe binaries: base 12,116,128 B; SDK only 13,320,352 B; plus `otlptracehttp` 21,471,392 B; plus all three `otlp*http` and otelhttp 23,519,392 B; the gRPC exporters 23,621,792 B; hand-marshalled `proto/slim/otlp` 15,470,752 B. Hence ROADMAP's image budget of 40 MB | 2026-10-28 | `go build -trimpath -ldflags="-s -w"` of probe modules, `ls -l`; the real image is measured in P0-07a |
+| River v0.50.0 computes a job's unique key from `EncodedArgs` only, never metadata, so trace context goes in metadata (P0-07b) | 2026-10-28 | `client.go` (`dbunique.UniqueKey`), `internal/dbunique/db_unique.go` |
+| otelriver v0.12.0 `EnableTracePropagation` writes `traceparent` into job metadata and gives the work span a **link** to the enqueuing span, not a parent | 2026-10-28 | `otelriver/middleware.go` (`injectTraceContext`, `extractSpanContext`) |
 | The Playwright MCP launches the `chrome` channel, which isn't installed on the dev box (`npx playwright install chrome` would fix it) | 2026-10-27 | MCP error on `browser_navigate` |
 
 ## UNVERIFIED (check before relying on them)
 
 | Claim | How to check |
 | :-- | :-- |
-| Grafana Cloud free tier: ~10k active metric series, 50 GB logs/traces, 14-day retention (secondary sources only) | https://grafana.com/pricing, at P0-07 / P2-17 |
+| Grafana Cloud free tier: ~10k active metric series, 50 GB logs/traces, 14-day retention (secondary sources only) | https://grafana.com/pricing, at P0-07a / P2-17 |
 | India commercial SMS requires TRAI DLT sender/template registration (affects SCP-01 phone OTP) | TRAI / SMS-provider documentation, before any phone-OTP work |
 | Chrome installs the PWA from `manifest.webmanifest` (installability needs HTTPS or localhost, so the LAN phone test can't check it) | Lighthouse or Chrome DevTools, Application, Manifest, on a deployed HTTPS build (P2-17) |
 | Render's internal Postgres URL supports `sslmode=verify-full` (prod config requires verify-full or verify-ca) and allows direct, non-pooled connections for `earlii migrate` | Render docs, at D-04 / P2-17 |

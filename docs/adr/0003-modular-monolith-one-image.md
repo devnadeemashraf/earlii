@@ -59,4 +59,4 @@ There is one maintainer.
 
 ## Verification
 
-P0-06: the same image runs all three modes in Compose. P0-07: one trace spans API → job → worker.
+P0-06: the same image runs all three modes in Compose. P0-07b: one trace spans API → job → worker.
